@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" href="./styles/style.css" />
+    <title>Humans vs. Orcs</title>
+</head>
+<body>
+    <main>
+        <!-- #game-intro is initially shown on the game start screen -->
+        <div id="game-intro">
+            <img src="" alt="" class="logo-img" />
+            <br />
+            <button id="start-button">Start Game</button>
+            <p>Instructions</p>
+            <img src="" alt="" class="instructions" />
+        </div>
+
+        <div id="game-container">
+            <div id="game-screen" style="display: none;">
+                <div id="world-container">
+                    <!-- This will contain the game world and world-items -->
+                </div>
+            </div>
+        </div>
+        <!-- # The battle screen -->
+        <div id="battle-screen" style="display: none;">
+          <div id="player-side" class="battle-side">
+              <h3>Player Units</h3>
+              <!-- Player units will be dynamically added here -->
+          </div>
+          <div id="battle-grid-container">
+              <!-- The battle grid will be dynamically created here -->
+          </div>
+          <div id="enemy-side" class="battle-side">
+              <h3>Enemy Units</h3>
+              <!-- Enemy units will be dynamically added here -->
+          </div>
+          <div id="action-bar">
+              <!-- Action bar content will be dynamically added here -->
+          </div>
+        </div>
+
+
+        <!-- #game-end is initially hidden using CSS style display: none -->
+        <div id="game-end">
+            <img src="" alt="" class="logo-img" />
+            <h1>Game Over</h1>
+            <br />
+            <button id="restart-button">Restart</button>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script type="text/javascript" src="js/grid.js"></script>
+    <script type="text/javascript" src="js/units.js"></script>
+    <script type="text/javascript" src="js/player.js"></script>
+    <script type="text/javascript" src="js/war.js"></script>
+    <script type="text/javascript" src="js/game.js"></script>
+    <script type="text/javascript" src="js/script.js"></script>
+</body>
+</html>
