@@ -18,6 +18,7 @@ class Game {
     this.worldContainer = document.querySelector("#world-container");
     this.battleGridContainer = document.querySelector("#battle-grid-container");
     this.battleActionBar = document.querySelector("#action-bar");
+    this.restartButton = document.querySelector("#restart-button");
     // Initialize more properties as needed
   }
 
@@ -38,7 +39,6 @@ class Game {
 
 
     // Add each world item
-    console.log(this.encounters)
     this.encounters.forEach((itemData, index) => {
       this.addWorldItem(itemData, index+1); // Use index + 1 as a simple way to generate unique encounter IDs
   });
@@ -51,7 +51,6 @@ class Game {
   }
 
   startBattle(encounterId) {
-    console.log(` THIS IS THE ENCOUNTER ID : `, encounterId)
     const encounter = this.encounters.find(enc => enc.id === encounterId);
     if (!encounter) {
       console.error("Encounter not found:", encounterId);
@@ -70,8 +69,8 @@ class Game {
       });
   
       // Create new instances of War and BattleGrid
-      currentWar = new War(this.humanPlayer, enemyPlayer,encounterId, {
-        onBattleEnd: (winner) => this.showOutcomePopup(winner),
+      currentWar = new War(this.humanPlayer, enemyPlayer, encounterId, {
+        onBattleEnd: (winner) => this.showOutcomePopup(winner,encounterId),
         gameOver: () => this.gameOver()
       });
       battleGrid = new BattleGrid(12, 16, currentWar); // Adjust dimensions as needed
@@ -110,21 +109,27 @@ class Game {
     this.worldScreen.style.display = "flex";
     //cleaning up the Action bar
     this.battleActionBar.innerHTML = "";
-    console.log(`BEFORE DELETION - THIS.WARS`,this.wars)
     delete this.wars[encounterId]
-    console.log(`AFTER DELETION - THIS.WARS`,this.wars)
+
     this.removeWorldItem(encounterId);
 
+
     // Handle the aftermath of the battle, such as updating unit stats or the game world
+    // PLACEHOLDER !!!
+    if (this.encounters.filter(encounter => encounter.isEnemy === true).length === 0 ){
+      this.gameOver(winner)
+    }
   }
 
   // Method to handle the game over state
-  gameOver() {
+  gameOver(winner) {
     this.currentState = "gameOver";
     this.battleScreen.style.display = "none";
     this.gameScreen.style.display = "none";
     this.endScreen.style.display = "flex";
     // Handle game over logic, such as displaying scores or restart options
+    console.log(`Congrats `, winner)
+    // this.restartButton.addEventListener(`click`, )
 
   
   }
@@ -173,9 +178,17 @@ class Game {
   }
 
   removeWorldItem(encounterId) {
-    // Logic to remove the world item by encounterId
-    // This might involve updating the DOM directly or refreshing the world view if you're keeping a state of world items
+
+    const itemElement = this.worldContainer.querySelector(`[data-encounter-id="${encounterId}"]`);
+    if (itemElement) {
+      this.worldContainer.removeChild(itemElement);
+    } else {
+      console.log("Item with encounterId", encounterId, "not found.");
+    }
+
+    this.encounters = this.encounters.filter(encounter => encounter.id !== encounterId);
   }
+  
   
 
   // Method to show the status screen
@@ -269,8 +282,9 @@ class Game {
 
   // Method to hide the status screen
   hideStatusScreen() {
-    this.statusScreen.style.display = "none"; // Hide the status screen
-
+    if (this.statusScreen) {
+      this.statusScreen.style.display = "none"; // Hide the status screen
+    }
   }
 
   updateStatusScreen(info) {
@@ -321,7 +335,8 @@ class Game {
 
 
         document.body.removeChild(popup);
-        this.battleActionBar.style.display = "none"; // Re-enable the action bar
+        this.battleActionBar.style.display = "none";
+       // Re-enable the action bar
         this.endBattle(winner,encounterId); // Assuming endBattle method resets the view
       } else {
         // Restart the game

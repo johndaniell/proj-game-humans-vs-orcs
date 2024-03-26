@@ -14,6 +14,7 @@ class War {
             return
         }
 
+        console.log(`ATTACKER AND DEFENDER : `,attackerType, defenderType)
 
         const attackerArmy = this.player1.armiesByType[attackerType] || [];
         const defenderArmy = this.player2.armiesByType[defenderType] || [];
@@ -45,13 +46,13 @@ class War {
 
     cleanupDefeatedUnits(army, armyType, player) {
         const initialCount = army.length;
-        console.log(`INITIAL COUNT `, initialCount)
+
         const aliveUnits = army.filter(unit => unit.health > 0);
-        console.log(`ALIVE UNITS `,aliveUnits )
+
         if (initialCount !== aliveUnits.length) {
-            // console.log(`Defender lost ${initialCount - aliveUnits.length} units.`);
-            // console.log(`WTF IS THISSSSSSSSSSSSS`, player.armiesByType[armyType])
-            // console.log(player)
+            console.log(`Defender lost ${initialCount - aliveUnits.length} units.`);
+            console.log(`WTF IS THISSSSSSSSSSSSS`, player.armiesByType[armyType])
+            console.log(player)
             // Update the player's armiesByType directly to reflect the removal of defeated units
 
             player.armiesByType[armyType] =aliveUnits;
@@ -78,9 +79,10 @@ class War {
 
     finishBattle(winner) {
         if (winner) {
+
           this.onBattleEnd(winner,this.encounterId);
         } else {
-          this.gameOver();
+          this.gameOver(winner);
         }
       }
     

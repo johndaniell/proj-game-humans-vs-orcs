@@ -1,6 +1,6 @@
 window.onload = function () {
-    const startButton = document.getElementById("start-button");
-    const restartButton = document.getElementById("restart-button");
+    const startButton = document.querySelector("#start-button");
+    const restartButton = document.querySelector("#restart-button");
     let game = new Game(encounters); // Initialize the game
   
     startButton.addEventListener("click", function () {
@@ -8,7 +8,7 @@ window.onload = function () {
     });
   
     restartButton.addEventListener("click", function () {
-      game.gameOver(); // End the game and show the game over screen
       // Alternatively, restart the game entirely
+      window.location.reload()
     });
 };

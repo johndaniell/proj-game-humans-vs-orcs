@@ -62,22 +62,7 @@ class ComputerPlayer extends Player {
         // Computer-specific attributes or methods
     }
 
-    // AI methods for computer player
+    // AI methods for computer player ???
 }
 
 
-
-// // Usage example
-// // Create units
-// let humanPlayer = new HumanPlayer("Knight");
-// let enemyPlayer = new ComputerPlayer("Orc");
-
-// // Add 50 Footmen to the player's army
-// humanPlayer.addUnit("FootMan", 50);
-
-// // Assuming the Archer and Knight classes are defined similarly,
-// // you can add 30 Archers and 20 Knights like this:
-// humanPlayer.addUnit("Archer", 30);
-// humanPlayer.addUnit("Knight", 20);
-
-// // Now humanPlayer.army contains the units added

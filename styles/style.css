@@ -105,6 +105,20 @@ body {
     margin:0 10px;
 }
 
+.highlight-move {
+  background-color: rgba(0, 128, 0, 0.5); /* Semi-transparent green */
+  border: 1px solid green; /* Green border */
+  box-shadow: 0 0 10px green; /* Glowing effect */
+  cursor: pointer; /* Change cursor to indicate clickable */
+}
+
+.highlight-attack {
+  background-color: rgba(255, 0, 0, 0.2); /* Light red background */
+  border: 2px solid red; /* More pronounced border */
+  cursor: pointer; /* Changes the cursor to indicate it's clickable */
+}
+
+
 #action-bar {
     position: absolute;
     bottom: 0;

@@ -1,9 +1,11 @@
 class UnitBase {
-  constructor(type, health, strength, movementRange) {
+  constructor(type, health, strength, movementRange, attackRange, imagePath) {
     this.health = health;
     this.strength = strength;
     this.movementRange = movementRange;
     this.type = type;
+    this.attackRange = attackRange;
+    this.imagePath = imagePath
   }
 
   // Common methods for all units
@@ -32,7 +34,8 @@ class UnitBase {
 function createUnitClass(unitConfig) {
   return class extends UnitBase {
     constructor() {
-      super(unitConfig.type, unitConfig.health, unitConfig.strength, unitConfig.movementRange );
+      super(unitConfig.type, unitConfig.health, unitConfig.strength, unitConfig.movementRange,unitConfig.attackRange,unitConfig.imagePath );
+    // console.log(`THIS SHOULD BE THE IMAGE PATH FOR ${unitConfig.type}`,unitConfig.imagePath)
     }
 
     // Add any special methods for specific units
@@ -41,12 +44,13 @@ function createUnitClass(unitConfig) {
 }
 
 // Example usage:
+// NEED TO MOVE THIS IN A SEPARATE FILE , AND PUT THE IMAGE.PATH TO APLAYER CLASS IN THE TYPE UNIT
 const unitData = [
-  { type: "FootMan", health: 100, strength: 10, movementRange: [3, 3] },
-  { type: "Archer", health: 80, strength: 15, movementRange: [2, 5] },
-  { type: "Knight", health: 150, strength: 20, movementRange: [4, 4] },
-  { type: "Grunt", health: 80, strength: 8, movementRange: [2, 2] },
-  { type: "OrcWarrior", health: 110, strength: 12, movementRange: [3, 3] },
+  { type: "FootMan", health: 100, strength: 10, movementRange: [3, 3],attackRange : [1,1],imagePath: `./images/footman.png`  },
+  { type: "Archer", health: 80, strength: 15, movementRange: [10, 3],attackRange : [8,8],imagePath: `./images/footman.png` },
+  { type: "Knight", health: 150, strength: 20, movementRange: [4, 8],attackRange : [2,2],imagePath: `./images/footman.png` },
+  { type: "Grunt", health: 80, strength: 8, movementRange: [2, 2],attackRange : [1,1],imagePath: `./images/footman.png` },
+  { type: "OrcWarrior", health: 110, strength: 12, movementRange: [3, 3],attackRange : [1,1],imagePath: `./images/footman.png` },
   // Add more unit types as needed
 
   
