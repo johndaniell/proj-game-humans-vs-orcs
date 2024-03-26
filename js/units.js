@@ -23,7 +23,7 @@ class UnitBase {
     this.health -= damage;
     // console.log(`${this.type} has received ${damage} points of damage.`);
     if (this.health <= 0) {
-      console.log(`${this.type} has died in combat.`);
+      // console.log(`${this.type} has died in combat.`);
     }
   }
 }
@@ -45,7 +45,11 @@ const unitData = [
   { type: "FootMan", health: 100, strength: 10, movementRange: [3, 3] },
   { type: "Archer", health: 80, strength: 15, movementRange: [2, 5] },
   { type: "Knight", health: 150, strength: 20, movementRange: [4, 4] },
+  { type: "Grunt", health: 80, strength: 8, movementRange: [2, 2] },
+  { type: "OrcWarrior", health: 110, strength: 12, movementRange: [3, 3] },
   // Add more unit types as needed
+
+  
 ];
 
 const UnitTypes = {};

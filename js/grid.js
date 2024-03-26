@@ -3,6 +3,7 @@ class BattleGrid {
     this.rows = rows;
     this.columns = columns;
     this.currentWar = currentWar;
+    this.unitPositions = {}
     this.inAttackMode = false;
     this.selectedUnitForAttack = null;
     this.grid = this.createGrid(rows, columns);
@@ -12,6 +13,8 @@ class BattleGrid {
 
   }
 
+
+
   createGrid(rows, columns) {
     // Create a 2D array filled with nulls to represent an empty grid
     return Array.from({ length: rows }, () => Array(columns).fill(null));
@@ -19,11 +22,16 @@ class BattleGrid {
 
 
   refreshGrid() {
-    const container = document.querySelector('#battle-grid-container'); // Assuming the ID of your grid container
+    console.log(`Refreshing GRID !`)
+    this.tooltip.style.visibility = 'hidden'; // Ensure tooltip is hidden
+    const container = document.querySelector('#battle-grid-container');
     if (!container) return;
 
     this.displayGrid(container);
-    this.placeUnitsOnGrid(); // Ensure this method updates the display based on current state
+
+    // Re-place units at their remembered positions
+    this.placeUnitsForSide(this.currentWar.player1, 6, 0, true);
+    this.placeUnitsForSide(this.currentWar.player2, 6, this.columns - 1, false);
   }
 
 
@@ -44,32 +52,59 @@ class BattleGrid {
       }
     }
   }
-  placeUnitsOnGrid() {
-    // Assuming the human player's units are already added to their army
-   this.humanFootmenGroup = this.currentWar.player1.armiesByType['FootMan'];
-   this.humanArcherGroup = this.currentWar.player1.armiesByType['Archer'];
-    if (this.humanFootmenGroup && this.humanFootmenGroup.length > 0) {
-      // Pass the entire group as a reference
-      this.placeUnitGroup('FootMan', this.humanFootmenGroup, 6, 0, './images/footman.png', true);
-    }
-    if (this.humanArcherGroup && this.humanArcherGroup.length > 0) {
-      // Pass the entire group as a reference
-      this.placeUnitGroup('Archer', this.humanArcherGroup, 7, 0, './images/footman.png', true);
-    }
-  
-    // Assuming the enemy player's units are already added to their army
-    this.enemyFootmenGroup = this.currentWar.player2.armiesByType['FootMan'];
-    this.enemyKnightGroup = this.currentWar.player2.armiesByType['Knight'];
 
-    if (this.enemyFootmenGroup && this.enemyFootmenGroup.length > 0) {
-      // Pass the entire group as a reference
-      this.placeUnitGroup('FootMan', this.enemyFootmenGroup, 6, 15, './images/footman.png', false);
+
+    // Helper function to find the next available position
+    findNextAvailablePosition(startRow, startCol, isPlayerUnit) {
+      // Define search direction based on whether it's a player unit or enemy unit
+      const direction = isPlayerUnit ? 1 : -1;
+  
+      for (let offset = 0; offset < this.rows; offset++) {
+        const tryRow = startRow + offset * direction;
+        if (tryRow < 0 || tryRow >= this.rows) continue; // Skip if outside grid bounds
+  
+        // Check if the position is available
+        if (this.grid[tryRow][startCol] === null) {
+          return [tryRow, startCol];
+        }
+      }
+      // If no position is found, return null
+      return null;
     }
-    if (this.enemyKnightGroup && this.enemyKnightGroup.length > 0) {
-      // Pass the entire group as a reference
-      this.placeUnitGroup('Knight', this.enemyKnightGroup, 7, 15, './images/footman.png', false);
+
+
+    placeUnitsOnGrid() {
+      // Example of placing units for player and enemy dynamically
+      console.log(this.currentWar)
+
+      this.placeUnitsForSide(this.currentWar.player1, 6, 0, true);
+      this.placeUnitsForSide(this.currentWar.player2, 6, this.columns - 1, false);
+      console.log(`Refreshing !? `)
     }
-  }
+
+    placeUnitsForSide(player, startRow, startCol, isPlayerUnit) {
+      Object.entries(player.armiesByType).forEach(([unitType, unitGroup]) => {
+        if (unitGroup.length === 0) return;
+
+
+        let position;
+        // Check if we already have a position for this unit type
+        if (this.unitPositions[unitType]) {
+          position = this.unitPositions[unitType];
+        } else {
+          // Find a new position and remember it
+          position = this.findNextAvailablePosition(startRow, startCol, isPlayerUnit);
+          this.unitPositions[unitType] = position;
+        }
+    
+        if (position) {
+          const [row, col] = position;
+          // this.placeUnitGroup(unitType, unitGroup.length, row, col, `./images/${unitType.toLowerCase()}.png`, isPlayerUnit);
+            this.placeUnitGroup(unitType, unitGroup, row, col, `./images/footman.png`, isPlayerUnit);
+        }
+      });
+    }
+    
   
 
   // Place a group of units in one cell
@@ -89,22 +124,13 @@ class BattleGrid {
         imagePath,
         isPlayerUnit
       );
-  
+        
       // console.log(unitType, groupReference.length, row, col);
     } else {
       console.error("Grid cell is occupied by a different unit type.");
     }
   }
   
-
-  // // Usage example: placing a unit on the grid
-  // const someUnit = {
-  //     name: 'Knight',
-  //     imagePath: './path-to-knight-sprite.png',
-  //     // other properties...
-  //   };
-  //   battleGrid.placeUnit(someUnit, 5, 5); // Place the knight at row 5, column 5
-
   updateGridCellDisplayForGroup(
     row,
     col,
@@ -131,17 +157,23 @@ class BattleGrid {
 
 
       gridCell.addEventListener('mouseenter', (e) => {
+        if (document.body.contains(gridCell)) {
         this.tooltip.textContent = `${unitType} (${count})`; // Dynamically set the content
         this.tooltip.style.visibility = 'visible';
+        };
       });
         
       gridCell.addEventListener('mousemove', (e) => {
+        if (document.body.contains(gridCell)) {
         this.tooltip.style.left = e.pageX + 10 + 'px'; // Position the tooltip near the cursor
         this.tooltip.style.top = e.pageY + 10 + 'px';
+        }
       });
         
       gridCell.addEventListener('mouseleave', () => {
+        if (document.body.contains(gridCell)){
         this.tooltip.style.visibility = 'hidden'; // Hide the tooltip
+        }
       });
       
 
@@ -250,6 +282,7 @@ class BattleGrid {
 
       actionButtons.forEach((button) => button.remove());
       console.log(`Done Attacking`);
+
       this.refreshGrid()
       
     } else {

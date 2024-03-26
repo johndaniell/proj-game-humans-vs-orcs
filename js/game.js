@@ -1,21 +1,23 @@
 class Game {
-  constructor() {
-    this.currentState = "intro"; // Possible states: 'intro', 'world', 'battle', 'gameOver'
-
-    this.humanPlayer = new HumanPlayer("Gogu");
-    this.humanPlayer.addUnit("FootMan", 50);
+  constructor(encounters) {
+    this.currentState = "intro";
+    // Initialize the player with a starting army
+    this.humanPlayer = new HumanPlayer("GOGU");
+    this.humanPlayer.addUnit("FootMan", 50); // Initial army composition
     this.humanPlayer.addUnit("Archer", 650);
-    this.enemyPlayer = new ComputerPlayer("Orc");
-    this.enemyPlayer.addUnit("FootMan", 10)
-    this.enemyPlayer.addUnit("Knight", 100)
+
+    this.encounters = encounters;
+
+    this.wars = {}; // Stores War instances by encounter ID
+    this.battleGrids = {};
     this.statusScreen = document.querySelector("#status-screen"); // Reference to the status screen element
     this.worldScreen = document.querySelector("#game-screen");
     this.gameScreen = document.querySelector("#game-intro");
     this.battleScreen = document.querySelector("#battle-screen");
     this.endScreen = document.querySelector("#game-end");
     this.worldContainer = document.querySelector("#world-container");
-    this.battleGridContainer = document.querySelector('#battle-grid-container');
-    this.battleActionBar = document.querySelector('#action-bar');
+    this.battleGridContainer = document.querySelector("#battle-grid-container");
+    this.battleActionBar = document.querySelector("#action-bar");
     // Initialize more properties as needed
   }
 
@@ -34,29 +36,12 @@ class Game {
     this.worldScreen.style.display = "flex";
     this.battleScreen.style.display = "none";
 
-    // This should be moved OUTSIDE
-    const itemsData = [
-      {
-        id: 1,
-        name: "Item 1",
-        info: "This is item 1.",
-        imagePath: `./images/footman.png`,
-        width: "50px",
-        height: "50px",
-      },
-      {
-        id: 2,
-        name: "Item 2",
-        info: "This is item 2.",
-        imagePath: `./images/footman.png`,
-        width: "50px",
-        height: "50px",
-      },
-      // ... more items
-    ];
 
     // Add each world item
-    itemsData.forEach((itemData) => this.addWorldItem(itemData));
+    console.log(this.encounters)
+    this.encounters.forEach((itemData, index) => {
+      this.addWorldItem(itemData, index+1); // Use index + 1 as a simple way to generate unique encounter IDs
+  });
     this.worldContainer.addEventListener("click", (evt) => {
       // Check if the clicked element is not an item
       if (evt.target === this.worldContainer) {
@@ -65,48 +50,73 @@ class Game {
     });
   }
 
-  // Method to start a battle
-  startBattle() {
-    this.currentWar = new War(this.humanPlayer, this.enemyPlayer);
-    this.battleGrid = new BattleGrid(12, 16, this.currentWar ); // Example: 10 rows and 16 columns
-
+  startBattle(encounterId) {
+    console.log(` THIS IS THE ENCOUNTER ID : `, encounterId)
+    const encounter = this.encounters.find(enc => enc.id === encounterId);
+    if (!encounter) {
+      console.error("Encounter not found:", encounterId);
+      return;
+    }
+  
+    let currentWar = this.wars[encounterId];
+    let battleGrid = this.battleGrids[encounterId];
+  
+    if (!currentWar || !battleGrid) {
+      // Create an enemy player for this specific encounter
+      const enemyPlayer = new ComputerPlayer(encounter.enemyArmy.name);
+      let randomizer = Math.ceil(Math.random()*10)
+      encounter.enemyArmy.units.forEach(unit => {
+        enemyPlayer.addUnit(unit.type, unit.count * randomizer);
+      });
+  
+      // Create new instances of War and BattleGrid
+      currentWar = new War(this.humanPlayer, enemyPlayer,encounterId, {
+        onBattleEnd: (winner) => this.showOutcomePopup(winner),
+        gameOver: () => this.gameOver()
+      });
+      battleGrid = new BattleGrid(12, 16, currentWar); // Adjust dimensions as needed
+  
+      // Store the instances for future use
+      this.wars[encounterId] = currentWar;
+      this.battleGrids[encounterId] = battleGrid;
+    }
+  
     this.currentState = "battle";
-    this.setupBattle();
+    this.setupBattle(currentWar, battleGrid);
     this.hideStatusScreen();
-    this.battleGrid.placeUnitsOnGrid();
-
-
   }
-
   
 
   // Method to set up the battle screen
-  setupBattle() {
-    this.gameScreen.style.display = "none";
-    this.battleScreen.style.display = "flex";
-    this.worldScreen.style.display = "none";
-    this.battleGrid.displayGrid(this.battleGridContainer);
-    this.setupActionBar();
-
+    setupBattle(currentWar, battleGrid) {
+      this.gameScreen.style.display = "none";
+      this.battleScreen.style.display = "flex";
+      this.worldScreen.style.display = "none";
+    
+      // Use the passed battleGrid instance to display the grid
+      battleGrid.displayGrid(this.battleGridContainer);
+      battleGrid.placeUnitsOnGrid();
+      this.setupActionBar();
+    }
     // Initialize the battle, setting up player and enemy units on the battle screen
 
-  }
-
+    
 
   // Method to end the current battle and return to the world view
-  endBattle() {
+  endBattle(winner, encounterId) {
+    
     this.currentState = "world";
     this.battleScreen.style.display = "none";
     this.worldScreen.style.display = "flex";
     //cleaning up the Action bar
-    this.battleActionBar.innerHTML = '';
-
-    this.cleanupBattle()
+    this.battleActionBar.innerHTML = "";
+    console.log(`BEFORE DELETION - THIS.WARS`,this.wars)
+    delete this.wars[encounterId]
+    console.log(`AFTER DELETION - THIS.WARS`,this.wars)
+    this.removeWorldItem(encounterId);
 
     // Handle the aftermath of the battle, such as updating unit stats or the game world
   }
-
-  
 
   // Method to handle the game over state
   gameOver() {
@@ -115,10 +125,12 @@ class Game {
     this.gameScreen.style.display = "none";
     this.endScreen.style.display = "flex";
     // Handle game over logic, such as displaying scores or restart options
+
+  
   }
 
   // Method to add a world item
-  addWorldItem(itemData) {
+  addWorldItem(itemData,encounterId) {
     // Create the element that represents the item
     const itemElement = document.createElement("div");
     itemElement.classList.add("world-item"); // Add class for styling and event listening
@@ -146,6 +158,8 @@ class Game {
       itemElement.dataset[key] = itemData[key];
     }
 
+    itemElement.dataset.encounterId = encounterId.toString();
+
     // Add the item to the world-container
     this.worldContainer.appendChild(itemElement);
 
@@ -158,7 +172,12 @@ class Game {
     });
   }
 
-  // Method to show the status screen
+  removeWorldItem(encounterId) {
+    // Logic to remove the world item by encounterId
+    // This might involve updating the DOM directly or refreshing the world view if you're keeping a state of world items
+  }
+  
+
   // Method to show the status screen
   showStatusScreen(itemElement) {
     const itemData = {
@@ -235,11 +254,13 @@ class Game {
 
     // Adding event listeners to the buttons
     attackButton.addEventListener("click", () => {
-      this.startBattle(itemData);
+      const encounterId = parseInt(itemElement.dataset.encounterId, 10); // Ensure encounterId is an integer
+      this.startBattle(encounterId);
     });
 
     inspectButton.addEventListener("click", () => {
-      this.inspect(itemData);
+      const encounterId = parseInt(itemElement.dataset.encounterId, 10); // Ensure encounterId is an integer
+      this.inspect(encounterId);
     });
 
     // Update the content of the status screen based on the item
@@ -249,6 +270,7 @@ class Game {
   // Method to hide the status screen
   hideStatusScreen() {
     this.statusScreen.style.display = "none"; // Hide the status screen
+
   }
 
   updateStatusScreen(info) {
@@ -258,29 +280,64 @@ class Game {
     statusContent.textContent = info;
   }
 
-
   setupActionBar() {
     // Create the 'Back' button only if it doesn't already exist
-    if (!document.querySelector('#back-button')) {
-      const backButton = document.createElement('button');
-      backButton.textContent = 'Back';
-      backButton.id = 'back-button'; // Add an ID for easier selection
-      backButton.classList.add('action-button');
-      
+    if (!document.querySelector("#back-button")) {
+      this.battleActionBar.style.display = "block"
+      const backButton = document.createElement("button");
+      backButton.textContent = "Back";
+      backButton.id = "back-button"; // Add an ID for easier selection
+      backButton.classList.add("action-button");
+
       // Event listener for the 'Back' button
-      backButton.addEventListener('click', () => {
+      backButton.addEventListener("click", () => {
         this.endBattle();
       });
-      
+
       // Append the 'Back' button to the action bar
       this.battleActionBar.appendChild(backButton);
     }
   }
-  
 
-  cleanupBattle() {
-    // ...additional cleanup logic...
+
+  showOutcomePopup(winner, encounterId) {
+    const popup = document.createElement("div");
+    popup.id = "outcome-popup";
+    popup.style.position = "fixed";
+    popup.style.top = "50%";
+    popup.style.left = "50%";
+    popup.style.transform = "translate(-50%, -50%)";
+    popup.style.padding = "20px";
+    popup.style.backgroundColor = "#fff";
+    popup.style.boxShadow = "0 4px 8px rgba(0,0,0,0.1)";
+    popup.style.zIndex = "1000"; // Ensure it's above everything else
+    popup.textContent = winner === this.humanPlayer.name ? "You won! Click OK to continue." : "You lost! Click RESTART to try again.";
+  
+    const button = document.createElement("button");
+    button.textContent = winner === this.humanPlayer.name ? "OK" : "RESTART";
+    button.addEventListener("click", () => {
+      if (winner === this.humanPlayer.name) {
+        // Hide popup and return to world view
+
+
+        document.body.removeChild(popup);
+        this.battleActionBar.style.display = "none"; // Re-enable the action bar
+        this.endBattle(winner,encounterId); // Assuming endBattle method resets the view
+      } else {
+        // Restart the game
+        this.gameOver();
+        window.location.reload(); // PLACEHOLDER Simplest form of restart, consider a more sophisticated method for resetting game state
+      }
+    });
+  
+    popup.appendChild(button);
+    document.body.appendChild(popup);
+  
+    // Disable the action bar
+    this.battleActionBar.style.display = "none";
   }
+  
+  
 
   // Additional methods as needed for game logic, such as handling turns in battle
 }

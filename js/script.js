@@ -1,7 +1,7 @@
 window.onload = function () {
     const startButton = document.getElementById("start-button");
     const restartButton = document.getElementById("restart-button");
-    let game = new Game(); // Initialize the game
+    let game = new Game(encounters); // Initialize the game
   
     startButton.addEventListener("click", function () {
       game.start(); // Start the game
