@@ -2,8 +2,12 @@ class Game {
   constructor() {
     this.currentState = "intro"; // Possible states: 'intro', 'world', 'battle', 'gameOver'
 
-    this.humanPlayer = new HumanPlayer("Knight");
+    this.humanPlayer = new HumanPlayer("Gogu");
+    this.humanPlayer.addUnit("FootMan", 50);
+    this.humanPlayer.addUnit("Archer", 650);
     this.enemyPlayer = new ComputerPlayer("Orc");
+    this.enemyPlayer.addUnit("FootMan", 10)
+    this.enemyPlayer.addUnit("Knight", 100)
     this.statusScreen = document.querySelector("#status-screen"); // Reference to the status screen element
     this.worldScreen = document.querySelector("#game-screen");
     this.gameScreen = document.querySelector("#game-intro");
@@ -11,7 +15,6 @@ class Game {
     this.endScreen = document.querySelector("#game-end");
     this.worldContainer = document.querySelector("#world-container");
     this.battleGridContainer = document.querySelector('#battle-grid-container');
-    this.battleGrid = new BattleGrid(12, 16); // Example: 10 rows and 16 columns
     this.battleActionBar = document.querySelector('#action-bar');
     // Initialize more properties as needed
   }
@@ -64,12 +67,18 @@ class Game {
 
   // Method to start a battle
   startBattle() {
+    this.currentWar = new War(this.humanPlayer, this.enemyPlayer);
+    this.battleGrid = new BattleGrid(12, 16, this.currentWar ); // Example: 10 rows and 16 columns
+
     this.currentState = "battle";
     this.setupBattle();
     this.hideStatusScreen();
+    this.battleGrid.placeUnitsOnGrid();
 
 
   }
+
+  
 
   // Method to set up the battle screen
   setupBattle() {
@@ -78,10 +87,11 @@ class Game {
     this.worldScreen.style.display = "none";
     this.battleGrid.displayGrid(this.battleGridContainer);
     this.setupActionBar();
-    this.currentWar = new War(this.humanPlayer, this.ComputerPlayer);
+
     // Initialize the battle, setting up player and enemy units on the battle screen
 
   }
+
 
   // Method to end the current battle and return to the world view
   endBattle() {
@@ -250,17 +260,21 @@ class Game {
 
 
   setupActionBar() {
-    const backButton = document.createElement('button');
-    backButton.textContent = 'Back';
-    backButton.classList.add('action-button');
-    
-    // Event listener for the back button
-    backButton.addEventListener('click', () => {
-      this.endBattle();
-    });
-    
-    // Append the button to the action bar
-    this.battleActionBar.appendChild(backButton);
+    // Create the 'Back' button only if it doesn't already exist
+    if (!document.querySelector('#back-button')) {
+      const backButton = document.createElement('button');
+      backButton.textContent = 'Back';
+      backButton.id = 'back-button'; // Add an ID for easier selection
+      backButton.classList.add('action-button');
+      
+      // Event listener for the 'Back' button
+      backButton.addEventListener('click', () => {
+        this.endBattle();
+      });
+      
+      // Append the 'Back' button to the action bar
+      this.battleActionBar.appendChild(backButton);
+    }
   }
   
 

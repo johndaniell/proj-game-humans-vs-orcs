@@ -1,15 +1,45 @@
 class Player {
     constructor(name) {
         this.name = name;
-        this.army = [];
+        this.armiesByType = {};
     }
 
     // Add a unit to the army
-    addUnit(unit) {
-        if (unit instanceof FootMan || unit instanceof Archer || unit instanceof Knight) {
-            this.army.push(unit);
+    addUnit(type, count = 1) {
+        // Check if the type is valid
+        const UnitClass = UnitTypes[type];
+        if (!UnitClass) {
+            console.error("Invalid unit type:", type);
+            return;
+        }
+
+        // Initialize the army type array if it doesn't exist
+        if (!this.armiesByType[type]) {
+            this.armiesByType[type] = [];
+            
+            // DEBUG
+            // console.log(this.armiesByType[type])
+        }
+
+        // Create and add the units
+        for (let i = 0; i < count; i++) {
+            const unit = new UnitClass();
+            this.armiesByType[type].push(unit);
+        }
+    }
+
+
+    getTotalArmyCount(type = null) {
+        if (type) {
+            // Return the count for the specific type
+            return this.armiesByType[type]?.length || 0;
         } else {
-            console.error("Invalid unit type");
+            // Return an object with each type as a key and the count of units as the value
+            const typeCounts = {};
+            for (const typeKey in this.armiesByType) {
+                typeCounts[typeKey] = this.armiesByType[typeKey].length;
+            }
+            return typeCounts;
         }
     }
 
@@ -38,17 +68,16 @@ class ComputerPlayer extends Player {
 
 
 // // Usage example
+// // Create units
 // let humanPlayer = new HumanPlayer("Knight");
 // let enemyPlayer = new ComputerPlayer("Orc");
 
-// // Create units
-// let footman = new FootMan();
-// let archer = new Archer();
-// let knight = new Knight();
+// // Add 50 Footmen to the player's army
+// humanPlayer.addUnit("FootMan", 50);
 
-// // Add units to player's army
-// humanPlayer.addUnit(footman);
-// humanPlayer.addUnit(archer);
-// humanPlayer.addUnit(knight);
+// // Assuming the Archer and Knight classes are defined similarly,
+// // you can add 30 Archers and 20 Knights like this:
+// humanPlayer.addUnit("Archer", 30);
+// humanPlayer.addUnit("Knight", 20);
 
 // // Now humanPlayer.army contains the units added

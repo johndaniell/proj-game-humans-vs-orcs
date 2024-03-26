@@ -19,19 +19,19 @@ body {
   
   #game-screen {
     display: none; /* Or 'flex', depending on your design */
-    flex-grow: 1;
+    flex-grow: 0;
     margin :10px;
     width: 800px; /* Set a width */
     height: 600px; /* Set a height */
     background-image: url(../images/GrassBackground.jpg); /* Check the path */
     background-size: cover;
-    background-repeat: no-repeat;
+    /* background-repeat: repeat; */
     /* Other styles */
 }
   
 #world-container {
     position: relative;
-    flex-grow: 1; /* Takes up the remaining space */
+    flex-grow: 1; /*Takes up the remaining space*/
     /* No specific width is required as it will grow to the remaining space */
     height: 100%; /* Fill the height of the game-screen */
 
@@ -82,6 +82,7 @@ body {
     gap: 0px; /* Adjust the gap if needed */
     margin: 0 auto;
     background: #ddd; /* Temporary background to visualize the area */
+    background-image: url(../images/GrassBackground.jpg);
     width: 800px; /* Fixed width of the grid */
     height: 600px; /* Fixed height of the grid */
   }
@@ -93,7 +94,8 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 0.75rem;
-    background-color: #d4d4d4; /* Light gray for visibility */
+    
+    background-color: #d4d4d427; /* Light gray for visibility */
 }
 
 .battle-side {
@@ -124,6 +126,17 @@ body {
   
   .action-button:hover {
     background-color: #45a049; /* Darker shade for hover */
+  }
+  
+
+  .tooltip {
+    position: absolute;
+    background-color: black;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+    font-size: 12px;
+    visibility: hidden; /* Hidden by default */
   }
   
 
