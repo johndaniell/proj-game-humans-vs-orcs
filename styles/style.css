@@ -142,6 +142,10 @@ body {
     background-color: #45a049; /* Darker shade for hover */
   }
   
+  .action-button-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .tooltip {
     position: absolute;

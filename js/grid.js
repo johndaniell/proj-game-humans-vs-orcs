@@ -9,8 +9,51 @@ class BattleGrid {
     this.grid = this.createGrid(rows, columns);
     this.tooltip = document.createElement("div");
     this.tooltip.className = "tooltip";
+    this.unitActionTokens = {};
     document.body.appendChild(this.tooltip);
   }
+  
+  
+
+  initializeUnitActionTokens() {
+    // Assuming this.currentWar.player1.armiesByType has all the unit types
+    Object.keys(this.currentWar.player1.armiesByType).forEach((unitType) => {
+      this.unitActionTokens[unitType] = { moveToken: 1, attackToken: 1 };
+    });
+  }
+
+  resetUnitActionTokens(unitType) {
+    this.unitActionTokens[unitType].moveToken = 1;
+    this.unitActionTokens[unitType].attackToken = 1;
+  }
+
+
+  resetActionTokensforAllUnits(){
+    Object.keys(this.unitActionTokens).forEach(unitType => this.resetUnitActionTokens(unitType));
+  }
+
+  skipTurn(unitType) {
+    this.unitActionTokens[unitType].moveToken = 0;
+    this.unitActionTokens[unitType].attackToken = 0;
+    // Execute skip turn logic...
+  }
+
+  skipTurnForAllUnits() {
+    // Loop through each unit type and set their tokens to 0
+    Object.keys(this.unitActionTokens).forEach(unitType => this.skipTurn(unitType));
+
+    // Optionally, trigger any end-of-turn effects here
+    console.log("All units have skipped their turn.");
+
+    // Refresh the grid or update the UI as needed
+    this.refreshGrid(); // Assuming you have a method like this to redraw the grid
+  }
+  // Checks if any units have action tokens left
+
+  haveUnitsActionTokensLeft() {
+    return Object.values(this.unitActionTokens).some(tokens => tokens.moveToken > 0 || tokens.attackToken > 0);
+  }
+
 
   createGrid(rows, columns) {
     // Create a 2D array filled with nulls to represent an empty grid
@@ -28,8 +71,8 @@ class BattleGrid {
     // Re-place units at their remembered positions
     this.placeUnitsForSide(this.currentWar.player1, 6, 0, true);
     this.placeUnitsForSide(this.currentWar.player2, 6, this.columns - 1, false);
-    this.battleActionBar.querySelectorAll(
-      ".action-button:not(#back-button)"
+    document.querySelector("#action-bar").querySelectorAll(
+      ".action-button:not(#back-button):not(#end-turn-button)"
     ).forEach((button) => button.remove());
   }
 
@@ -186,18 +229,12 @@ class BattleGrid {
     }
   }
 
+
   showUnitActions(unitType, gridCell, isPlayerUnit) {
-      // Check if a different unit is selected while in attack mode
-  if (this.inAttackMode && this.selectedUnitForAttack !== unitType) {
-    // If a different unit is selected, clear existing mode and listeners
-    this.clearAttackMode();
-  }
     // Select all action buttons except 'Back'
     this.battleActionBar = document.querySelector("#action-bar");
-    const actionButtons = this.battleActionBar.querySelectorAll(
-      ".action-button:not(#back-button)"
-    );
-
+    const actionButtons = this.battleActionBar.querySelectorAll(".action-button:not(#back-button):not(#end-turn-button)");
+  
     // If it's a player unit, show 'Move' and 'Attack' buttons; otherwise, hide them
     if (isPlayerUnit) {
       // Clear existing 'Move' and 'Attack' actions, if any
@@ -207,8 +244,8 @@ class BattleGrid {
       const moveButton = document.createElement("button");
       moveButton.textContent = "Move";
       moveButton.classList.add("action-button");
+      moveButton.disabled = this.unitActionTokens[unitType].moveToken <= 0; // Disable if no move tokens
       moveButton.addEventListener("click", () => {
-        // Logic to move the selected unit group
         console.log(`Move ${unitType}`);
         this.startMoveMode(unitType, gridCell);
       });
@@ -217,45 +254,93 @@ class BattleGrid {
       const attackButton = document.createElement("button");
       attackButton.textContent = "Attack";
       attackButton.classList.add("action-button");
+      attackButton.disabled = this.unitActionTokens[unitType].attackToken <= 0; // Disable if no attack tokens
       attackButton.addEventListener("click", () => {
-        // Enter attack mode
-        if (this.inAttackMode) {
-      // If already in attack mode for this unit, toggle it off
-      console.log("Exiting attack mode.");
-      this.clearAttackMode();
-          return;
+        if (!attackButton.disabled) {
+          this.toggleAttackMode(unitType, gridCell);
         } else {
-      // Enter attack mode for this unit
-      this.enterAttackMode(unitType, gridCell);
+          console.log("No attack tokens left for this unit type!");
+        }
+      });
+
+      // Create 'Skip' button
+      const skipButton = document.createElement("button");
+      skipButton.textContent = "Skip";
+      skipButton.classList.add("action-button");
+      skipButton.addEventListener("click", () => {
+        // Consume both move and attack tokens
+        if (
+          this.unitActionTokens[unitType].moveToken > 0 ||
+          this.unitActionTokens[unitType].attackToken > 0
+        ) {
+          this.unitActionTokens[unitType].moveToken = 0;
+          this.unitActionTokens[unitType].attackToken = 0;
+          console.log(
+            `Skipping turn for ${unitType}. Move and attack tokens consumed.`
+            
+          );
+
+
+          // Update the state of the game as needed
+          // ...
+
+          actionButtons.forEach((button) => button.remove());
+          this.refreshGrid();
+
+      // Update the appearance of all action buttons
+        this.updateButtonStyles(unitType,moveButton, attackButton, skipButton);
+        } else {
+          console.log("No actions left to skip!");
         }
       });
 
       // Add buttons to the action bar
       this.battleActionBar.appendChild(moveButton);
       this.battleActionBar.appendChild(attackButton);
+      this.battleActionBar.appendChild(skipButton);
+
+      // Update the appearance of buttons based on tokens
+      this.updateButtonStyles(unitType,moveButton, attackButton, skipButton);
     } else {
       // If it's not a player unit, remove 'Move' and 'Attack' buttons
       actionButtons.forEach((button) => button.remove());
     }
   }
+
+   
+  updateButtonStyles(unitType, moveButton, attackButton, skipButton) {
+    const disabledStyle = 'action-button-disabled'; // CSS class for disabled style
+    const hasMoveToken = this.unitActionTokens[unitType].moveToken > 0;
+    const hasAttackToken = this.unitActionTokens[unitType].attackToken > 0;
   
+    // Update the disabled state and style for each button
+    moveButton.disabled = !hasMoveToken;
+    attackButton.disabled = !hasAttackToken;
+    skipButton.disabled = !hasMoveToken && !hasAttackToken;
+  
+    // Apply the disabled style based on the disabled state
+    moveButton.classList.toggle(disabledStyle, !hasMoveToken);
+    attackButton.classList.toggle(disabledStyle, !hasAttackToken);
+    skipButton.classList.toggle(disabledStyle, !hasMoveToken && !hasAttackToken);
+  }
+
+  
+
 // ATTACK DISTANCE LOGIC 
 //
 //
 // Method to enter attack mode
-enterAttackMode(unitType, gridCell) {
-  this.inAttackMode = true;
-  this.selectedUnitForAttack = unitType;
-  console.log(`Ready to attack with ${unitType}. Select a target.`);
-  this.highlightEnemiesInRange(unitType, gridCell);
-}
 
-// Method to clear attack mode and related UI elements
-clearAttackMode() {
-  this.inAttackMode = false;
-  this.selectedUnitForAttack = null;
-  this.clearHighlightedCells(); // Assuming this clears attack highlights
-  // Potentially clear or adjust action bar buttons as needed
+toggleAttackMode(unitType, gridCell) {
+  // Enter or exit attack mode
+  this.inAttackMode = !this.inAttackMode;
+  this.selectedUnitForAttack = this.inAttackMode ? unitType : null;
+  console.log(`${this.inAttackMode ? 'Entering' : 'Exiting'} attack mode.`);
+  if (this.inAttackMode) {
+    this.highlightEnemiesInRange(unitType, gridCell);
+  } else {
+    this.clearHighlightedCells();
+  }
 }
 
 
@@ -327,7 +412,7 @@ executeAttack(unitType, fromPosition, toPosition) {
     console.log (this.grid[targetRow][targetCol])
     this.currentWar.attack(unitType, this.grid[targetRow][targetCol].type);
     // Additional logic after successful attack, e.g., updating unit positions
-
+    this.unitActionTokens[unitType].attackToken -= 1;
     // Reset UI elements
     this.clearHighlightedCells();
     this.refreshGrid(); // Refresh the grid to reflect changes after the attack
@@ -455,6 +540,8 @@ executeAttack(unitType, fromPosition, toPosition) {
   return isValidHorizontalMove && isValidVerticalMove && isTargetCellEmpty;
 }
 
+
+  // THE ACTUAL MOVE HAPPENS HERE !
   // Method to move a unit to a new position
   moveUnit(unitType, currentCell, targetRow, targetCol) {
     // Step 1: Validate move (e.g., target cell is within range and not occupied)
@@ -476,9 +563,12 @@ executeAttack(unitType, fromPosition, toPosition) {
  this.grid[oldRow][oldCol] = null;  // Clear the old position
 
  // Step 3: Update unit's position in the data model
+
+ // REALLY NEED TO CLEAN UP THE VARIABLE NAMES !! 
+//  IS A MESS 
  this.grid[targetRow][targetCol] = unitType;  // Set the new position
  this.unitPositions[unitType.type] = [targetRow, targetCol]; // Update the stored position
-
+ this.unitActionTokens[unitType.type].moveToken -= 1;
  // Refresh the grid to reflect the updated positions
  this.refreshGrid(); // This function will redraw the grid based on the updated data model
 }
