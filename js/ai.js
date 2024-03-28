@@ -1,8 +1,8 @@
 class AIPlayer {
-    constructor(gameInstance, battleGridInstance, player2) {
+    constructor(gameInstance, battleGridInstance, currentWarInstance) {
       this.game = gameInstance;
       this.battleGrid = battleGridInstance;
-      this.player = player2; // Assuming this is the AI player
+      this.currentWarInstance = currentWarInstance; // Assuming this is the AI player
     }
   
     // Basic pathfinding algorithm to find the nearest player unit
@@ -14,7 +14,7 @@ class AIPlayer {
     // Make decisions and take actions for all AI units
     takeTurn() {
       // For each unit the AI controls
-      this.player.armiesByType.forEach((unitType, units) => {
+      this.currentWarInstance.player.armiesByType.forEach((unitType, units) => {
         units.forEach(unit => {
           if (unit.moveToken > 0 || unit.attackToken > 0) {
             this.decideAndAct(unit);

@@ -12,7 +12,7 @@ body {
   
   #game-container {
     display: flex;
-    width: 100vw;
+    width: 100%;
     padding: 20px 0px;
     justify-content: center;
   }
@@ -21,11 +21,14 @@ body {
     display: none; /* Or 'flex', depending on your design */
     flex-grow: 0;
     margin :10px;
-    width: 800px; /* Set a width */
-    height: 600px; /* Set a height */
+    width: 1280px; /* Set a width */
+    height: 1024px; /* Set a height */
     background-image: url(../images/GrassBackground.jpg); /* Check the path */
-    background-size: cover;
-    /* background-repeat: repeat; */
+    /* z-index: -1; */
+    /* background-size: cover; */
+    /* background-attachment: fixed; */
+    /* background-position: center; */
+    /* background-repeat: no-repeat; */
     /* Other styles */
 }
   
@@ -66,35 +69,41 @@ body {
 
 #battle-screen {
     display: flex;
+    flex:1;
     flex-direction: row;
     justify-content: center;
     align-items: center;
     width: 100%;
-    height: 800px;
+    height: 100%;
     margin: auto;
     position: relative;
+    flex-grow:1;
+    flex-shrink: 1;
 }
 
   #battle-grid-container{
     display: grid;
-    grid-template-columns: repeat(16, 50px); /* 16 columns */
-    grid-template-rows: repeat(12, 50px); /* 12 rows */
+    grid-template-columns: repeat(16, 80px); /* 16 columns */
+    grid-template-rows: repeat(12, 80px); /* 12 rows */
     gap: 0px; /* Adjust the gap if needed */
-    margin: 0 auto;
+    margin: auto;
     background: #ddd; /* Temporary background to visualize the area */
     background-image: url(../images/GrassBackground.jpg);
-    width: 800px; /* Fixed width of the grid */
-    height: 600px; /* Fixed height of the grid */
+
+    width: auto; /* Fixed width of the grid */
+    height: auto; /* Fixed height of the grid */
   }
 
 .grid-cell {
     border: 1px solid black;
-    flex:1;
+    /* flex:1; */
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.75rem;
-    
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
     background-color: #d4d4d427; /* Light gray for visibility */
 }
 
@@ -106,25 +115,46 @@ body {
 }
 
 .highlight-move {
-  background-color: rgba(0, 128, 0, 0.5); /* Semi-transparent green */
+  background-color: rgba(0, 128, 0, 0.151); /* Semi-transparent green */
   border: 1px solid green; /* Green border */
   box-shadow: 0 0 10px green; /* Glowing effect */
   cursor: pointer; /* Change cursor to indicate clickable */
 }
 
 .highlight-attack {
-  background-color: rgba(255, 0, 0, 0.2); /* Light red background */
-  border: 2px solid red; /* More pronounced border */
+  background-color: rgba(189, 26, 26, 0.103); /* Semi-transparent green */
+  border: 1px solid rgb(128, 0, 0); /* Green border */
+  box-shadow: 0 0 10px rgb(48, 0, 0); /* Glowing effect */
+ 
+}
+.highlight-attack-enemy {
+  background-color: rgba(255, 0, 0, 0.432); /* Light red background */
+  border: 2px solid rgba(255, 0, 0, 0.781); /* More pronounced border */
   cursor: pointer; /* Changes the cursor to indicate it's clickable */
 }
 
 
+.battle-log {
+  align-self: flex-end;
+  flex-direction: column;
+  position: absolute;
+  top: 1024px;
+  left: 0;
+  width: 100%;
+  height: 100px; /* Or whatever height you want */
+  overflow-y: auto; /* Makes it scrollable if content overflows */
+  background: #f9f9f9; /* Light background for visibility */
+  border-top: 1px solid #ccc; /* A border to separate from the grid */
+  padding: 10px;
+  box-sizing: border-box;
+}
+
 #action-bar {
     position: absolute;
-    bottom: 0;
+    bottom: -100px;
     left: 0;
     width: 100%;
-    height: 50px; /* Or whatever height you prefer */
+    height: 100px; /* Or whatever height you prefer */
     /* Styles for the action bar */
 }
 

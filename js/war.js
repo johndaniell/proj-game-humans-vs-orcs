@@ -8,31 +8,31 @@ class War {
 
     }
 
-    attack(attackerType, defenderType) {
-        if(!attackerType || !defenderType ){
-            // console.log(attackerType,`is attacking - SHOULD BE EMPTY `,defenderType )
-            return
-        }
-
-        console.log(`ATTACKER AND DEFENDER : `,attackerType, defenderType)
-
-        const attackerArmy = this.player1.armiesByType[attackerType] || [];
-        const defenderArmy = this.player2.armiesByType[defenderType] || [];
-        const enemy = this.player2;
-
-        const totalAttackDamage = this.calculateTotalDamage(attackerArmy);
-       
-        this.applyDamage(defenderArmy, totalAttackDamage,defenderType,enemy);
-
-        this.determineOutcome();
+attack(attackerType, defenderType, attacker, defender, currentGrid) {
+    if (!attackerType || !defenderType) {
+        console.log("Invalid attacker or defender type");
+        return;
     }
+
+    // console.log(`ATTACKER: ${attackerType}, DEFENDER: ${defenderType}`);
+
+    const attackerArmy = attacker.armiesByType[attackerType] || [];
+    const defenderArmy = defender.armiesByType[defenderType] || [];
+
+    const totalAttackDamage = this.calculateTotalDamage(attackerArmy);
+    addBattleLogMessage(`${attackerType} attacks ${defenderType} with total damage of ${totalAttackDamage}.`);
+
+    this.applyDamage(defenderArmy, totalAttackDamage, defenderType, defender,currentGrid);
+
+    this.determineOutcome();
+}
 
     calculateTotalDamage(army) {
         return army.reduce((total, unit) => total + unit.attack(), 0);
     }
 
 
-    applyDamage(army, damage,armyType,player) {
+    applyDamage(army, damage,armyType,player,currentGrid) {
         let remainingDamage = damage;
         army.forEach(unit => {
             if (remainingDamage <= 0) return;
@@ -41,22 +41,40 @@ class War {
             remainingDamage -= damageApplied;
         });
 
-        this.cleanupDefeatedUnits(army,armyType,player);
+        this.cleanupDefeatedUnits(army,armyType,player,currentGrid);
     }
 
-    cleanupDefeatedUnits(army, armyType, player) {
+    cleanupDefeatedUnits(army, armyType, player,currentGrid) {
         const initialCount = army.length;
 
         const aliveUnits = army.filter(unit => unit.health > 0);
 
         if (initialCount !== aliveUnits.length) {
-            console.log(`Defender lost ${initialCount - aliveUnits.length} units.`);
-            console.log(`WTF IS THISSSSSSSSSSSSS`, player.armiesByType[armyType])
-            console.log(player)
+            addBattleLogMessage(`${player.name} lost ${initialCount - aliveUnits.length} ${armyType}.`);
+            // console.log(`WTF IS THISSSSSSSSSSSSS`, player.armiesByType[armyType])
+            // console.log(player)
             // Update the player's armiesByType directly to reflect the removal of defeated units
+            
+            if (aliveUnits.length === 0) {
+                addBattleLogMessage(`${armyType} were banished from the face of earth !`);
+                //removing the type
+                delete player.armiesByType[armyType];
 
-            player.armiesByType[armyType] =aliveUnits;
+                // // cleaning the cell
+                // HACKY WAY TO DO IT !
+                if (currentGrid){
+                const  [thisBattleGrid, enemyPosition] = currentGrid
+                console.log(`TRYING TO REMOVE THE CELL from this GRID`,thisBattleGrid)
+                console.log(`TRYING TO REMOVE THE CELL`,enemyPosition)
+                const [targetRow,targetCol ] = enemyPosition;
+                thisBattleGrid.grid[targetRow][targetCol] = null;
+                thisBattleGrid.refreshGrid
+                }
 
+
+              } else {
+                player.armiesByType[armyType] = aliveUnits;
+              }
             // console.log(`Computer(defender) ARMIES :`,player.armiesByType[armyType]);
         }
     }
@@ -69,7 +87,7 @@ class War {
 
         if (player1TotalUnits === 0 || player2TotalUnits === 0) {
             const winner = player1TotalUnits > 0 ? this.player1.name : this.player2.name;
-            console.log(`The war has ended. Winner: ${winner}`);
+            addBattleLogMessage(`The war has ended. Winner: ${winner}`);
             this.finishBattle(winner);
 
 
@@ -78,6 +96,8 @@ class War {
     }
 
     finishBattle(winner) {
+
+        
         if (winner) {
 
           this.onBattleEnd(winner,this.encounterId);
@@ -86,4 +106,11 @@ class War {
         }
       }
     
+
+
+
+
+
+
+
 }
