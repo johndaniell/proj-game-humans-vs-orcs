@@ -83,7 +83,7 @@ class Game {
 
       // Create an enemy player for this specific encounter
       const enemyPlayer = new ComputerPlayer(encounter.enemyArmy.name, encounterId );
-      let randomizer = Math.ceil(Math.random() * 10);
+      let randomizer = Math.ceil(Math.random() * 3);
       encounter.enemyArmy.units.forEach((unit) => {
         enemyPlayer.addUnit(unit.type, unit.count * randomizer,encounter.enemyArmy.name );
       });
@@ -398,10 +398,11 @@ addDecorativeWorldItem(itemData) {
       endTurnButton.id = "end-turn-button";
       endTurnButton.classList.add("action-button", "action-button-disabled"); // Initially appears disabled
       endTurnButton.textContent = "End Turn";
-      this.battleActionBar.appendChild(endTurnButton);
+      
     }
 
     endTurnButton.addEventListener("click", () => {
+
       // Logic to end the turn, reset tokens, etc.
       // Note: Ensure this doesn't add multiple event listeners over time
       battleGrid.skipTurnForAllUnits(); // You'll need to implement this in BattleGrid
@@ -420,8 +421,9 @@ addDecorativeWorldItem(itemData) {
 
       // Give the player tokens back
       battleGrid.resetActionTokensforAllUnits();
-    });
+    })
 
+    this.battleActionBar.appendChild(endTurnButton);
     // Update 'End Turn' button appearance based on unit token state
     this.updateEndTurnButtonState(battleGrid);
   }
@@ -429,10 +431,12 @@ addDecorativeWorldItem(itemData) {
   updateEndTurnButtonState(battleGrid) {
     const endTurnButton = document.querySelector("#end-turn-button");
     if (endTurnButton) {
-      const tokensLeft = battleGrid.haveUnitsActionTokensLeft();
-      endTurnButton.classList.toggle("action-button-disabled", tokensLeft);
+      const tokensLeft = battleGrid.haveUnitsActionTokensLeft(); // Should return true if any tokens are left
+      // If tokensLeft is true, button should be enabled, hence "action-button-disabled" is false
+      endTurnButton.classList.toggle("action-button-disabled", !tokensLeft);
     }
   }
+  
 
   showOutcomePopup(winner, encounterId) {
     this.battleGrids[encounterId].refreshGrid()

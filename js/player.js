@@ -1,47 +1,66 @@
 class Player {
-    constructor(name) {
-        this.name = name;
-        this.armiesByType = {};
+  constructor(name) {
+    this.name = name;
+    this.armies = []; // Keyed by unique type identifiers
+  }
+
+
+  addUnit(type, count) {
+    if (!UnitTypes[type]) {
+      console.error("Invalid unit type:", type);
+      return;
     }
 
-    // Add a unit to the army
-    addUnit(type, count = 1) {
-        // Check if the type is valid
-        const UnitClass = UnitTypes[type];
-        if (!UnitClass) {
-            console.error("Invalid unit type:", type);
-            return;
-        }
+    // Create a unique army ID
+    let armyId = `${type}-${this.armies.length + 1}`;
+    // console.log(`ARMIEEEEEEEEEEEEEEESSSSSSSSSSSSSS`,this.armies)
 
-        // Initialize the army type array if it doesn't exist
-        if (!this.armiesByType[type]) {
-            this.armiesByType[type] = [];
-            
-            // DEBUG
-            // console.log(this.armiesByType[type])
-        }
+    // Instantiate unit instances
+    let unitInstances = Array.from({ length: count }, () => new UnitTypes[type]());
 
-        // Create and add the units
-        for (let i = 0; i < count; i++) {
-            const unit = new UnitClass();
-            this.armiesByType[type].push(unit);
-        }
-    }
+    // Create the new army object
+    let newArmy = {
+      id: armyId,
+      type: type,
+      count: count,
+      units: unitInstances,
+      movementRange: UnitTypes[type].movementRange,
+      attackRange: UnitTypes[type].attackRange,
+      imagePath: UnitTypes[type].imagePath,
+      color: UnitTypes[type].color,
+    };
 
+    // Add the new army to the player's collection
+    this.armies.push(newArmy);
+  }
 
-    getTotalArmyCount(type = null) {
-        if (type) {
-            // Return the count for the specific type
-            return this.armiesByType[type]?.length || 0;
-        } else {
-            // Return an object with each type as a key and the count of units as the value
-            const typeCounts = {};
-            for (const typeKey in this.armiesByType) {
-                typeCounts[typeKey] = this.armiesByType[typeKey].length;
-            }
-            return typeCounts;
-        }
-    }
+    // Method to split an army - this is a placeholder, implementation depends on game logic
+    splitArmy(armyId, newCount) {
+      // Find the army to split
+      let armyIndex = this.armies.findIndex(army => army.id === armyId);
+      if (armyIndex === -1) {
+          console.error("Army not found:", armyId);
+          return;
+      }
+
+      let army = this.armies[armyIndex];
+
+      // Ensure there are enough units to split
+      if (army.count < newCount) {
+          console.error("Not enough units in the army to split:", armyId);
+          return;
+      }
+
+      // Reduce the original army's count
+      army.count -= newCount;
+
+      // Create a new army with the split-off units
+      this.addUnit(army.type, newCount);
+  }
+
+  getTotalArmyCount() {
+    return this.armies.reduce((total, army) => total + army.count, 0);
+}
 
     // Other methods for managing the player's army and actions
 }
@@ -75,6 +94,11 @@ class ComputerPlayer extends Player {
       console.error("BattleGrid instance not set for AI player.");
       return;
     }
+
+
+
+
+
     // Implement AI logic here...
     // 1. Assess the current state of the game
     // 2. Make decisions about which units to move and where
@@ -83,124 +107,154 @@ class ComputerPlayer extends Player {
 
     // Example: Move and attack with each unit
   // Loop through each unit type the AI controls
-    Object.keys(this.armiesByType).forEach(unitType => {
+
+  this.battleGrid.currentWar.player2.armies.forEach(aiArmyType => {
+      // console.log(`PlayerArmyType.id AT THE BEGINNING` , aiArmyType.id);
         // Perform a check to decide whether to attack directly or move closer
-        if (!this.checkAndAttack(unitType)) {
+        if (!this.checkAndAttack(aiArmyType.id)) {
         // If no attack was possible, move the unit type closer to the target
-        this.moveUnitTypeCloser(unitType);
+        this.moveArmyTypeCloser(aiArmyType.id);
         // After moving, check again for attack opportunities
-        this.checkAndAttack(unitType);
+        this.checkAndAttack(aiArmyType.id);
         }
   });
     // Call any necessary callbacks or signal that the AI's turn is over
   }
 
-  // Decide whether to move closer or attack, then perform the action
-//   decideAndAct(unitType) {
-//     console.log(`THIS SHOULD BE ALL UNIT POSITIONS !!!!`, this.battleGrid);
-//     // Assume you can get the AI unit's position similarly
-//     const aiUnitPos = this.battleGrid.unitPositions[unitType];
-//     console.log(`AI HAS ${unitType} AT `, aiUnitPos);
-
-//     const nearestPlayerUnitPos = this.findNearestPlayerUnit(unitType);
-
-//     if (nearestPlayerUnitPos) {
-//       const distance = this.calculateDistance(aiUnitPos, nearestPlayerUnitPos);
-
-//       // Determine if an attack is possible based on the unit's attack range
-//       if (distance <= unitType.attackRange) {
-//         this.attackWithUnit(unitType, nearestPlayerUnitPos);
-//       } else {
-//         // Determine the direction to move closer based on the positions
-//         this.moveUnitTowards(unitType, nearestPlayerUnitPos);
-//       }
-//     }
-//   }
 
   // Basic pathfinding algorithm to find the nearest player unit
 
-  calculateDistance(unitPos1, unitPos2) {
+  calculateDistance(ArmyPos1, ArmyPos2) {
     // Adjusted to work with positions represented as arrays
+    // console.log(`calculateDistance(ArmyPos1, ArmyPos2)`,  ArmyPos1, ArmyPos2)
     return (
-      Math.abs(unitPos1[0] - unitPos2[0]) + // Calculate row distance
-      Math.abs(unitPos1[1] - unitPos2[1])   // Calculate column distance
+      Math.abs(ArmyPos1.row - ArmyPos2.row) + // Calculate row distance
+      Math.abs(ArmyPos1.col - ArmyPos2.col)   // Calculate column distance
     );
   }
   
-  findNearestPlayerUnit(aiUnitType) {
-    const aiUnitPos = this.battleGrid.unitPositions[aiUnitType];
-    let nearestDistance = Infinity;
-    let nearestUnitType = null;
-    let nearestUnitPos = null;
-  
+  findNearestPlayerArmy(aiArmyType) {
+    // console.log(`aiArmyType`,aiArmyType )
+    // console.log(`this.battleGrid.armyPositions[aiArmyType], inside findNearestPlayerArmy`, this.battleGrid.armyPositions[aiArmyType])
+    const aiArmyPos = this.battleGrid.armyPositions[aiArmyType];
+    let nearestDistanceToPlayer = Infinity;
+    let nearestPlayerArmyType = null;
+    let nearestPlayerArmyPos = null;
     // Ensure positions for AI unit type exist
-    if (!aiUnitPos) {
-      console.error(`Position for AI unit type ${aiUnitType} not found.`);
+    if (!aiArmyPos) {
+      console.error(`Position for AI unit type ${aiArmyType} not found.`);
       return null;
     }
-  
+    // console.log(`this.battleGrid.armyPositionsplayerArmyType.isPlayer`, this.battleGrid.armyPositions.playerArmyType)
     // Loop through player unit types and their positions
-    Object.entries(this.battleGrid.unitPositions).forEach(([playerUnitType, unitPos]) => {
+    Object.entries(this.battleGrid.armyPositions)
+  .filter(([_, armyDetails]) => armyDetails.isPlayer === true) // Adjust true/false based on your need
+  .forEach(([playerArmyType, playerArmyPos]) => {
       // Ensure we're only considering player units and the position is defined
-      if (this.battleGrid.currentWar.player1.armiesByType[playerUnitType] && unitPos) {
-        const distance = this.calculateDistance(aiUnitPos, unitPos);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestUnitType = playerUnitType;
-          nearestUnitPos = unitPos;
+      // console.log(`playerArmyType, playerArmyPos inside the loop findNearestPlayerArmy`, playerArmyType, playerArmyPos)
+      // console.log(`DOES THIS EXISTS ?  this.battleGrid.currentWar.player1.armies.playerArmyType`, this.battleGrid.currentWar.player1.armies.playerArmyType)
+      if (playerArmyPos) {
+        const distance = this.calculateDistance(aiArmyPos, playerArmyPos);
+        // console.log(`Distance from AI to PLyaer POSITION: `, distance)
+        if (distance < nearestDistanceToPlayer) {
+          nearestDistanceToPlayer = distance;
+          nearestPlayerArmyType = playerArmyType;
+          nearestPlayerArmyPos = playerArmyPos;
+          // console.log(`nearestPlayerArmyPos`, nearestPlayerArmyPos)
+          // console.log(`nearestPlayerArmyType`, nearestPlayerArmyType)
         }
       }
     });
   
-    // console.log(`Nearest player unit to ${aiUnitType}: ${nearestUnitType} at distance ${nearestDistance}`);
-    return { nearestUnitType, nearestUnitPos, nearestDistance };
+    // console.log(`Nearest player unit ${nearestPlayerArmyType} at psotion  ${nearestPlayerArmyPos.col}, ${nearestPlayerArmyPos.row} at distance ${nearestDistanceToPlayer}`);
+    return { nearestPlayerArmyType, nearestPlayerArmyPos, nearestDistanceToPlayer };
   }
   
   
-  isUnitInAttackRange(unitType, targetPosition) {
-    // Get the AI unit's current position
-    const aiUnitPos = this.battleGrid.unitPositions[unitType];
-    // Get the attack range for this unit type (assuming it's an array [horizontalRange, verticalRange])
-    const attackRange = this.getAttackRangeForUnit(unitType);
-    
+  isArmyInAttackRange(aiArmyId, targetPosition) {
+    // Assuming `aiArmyId` is used to find the army's current position
+    const aiUnitPos = this.battleGrid.armyPositions[aiArmyId];
+    // console.log (aiUnitPos,targetPosition )
+
+    // Validate that we found the AI army position
+    if (!aiUnitPos) {
+        console.error(`Position for army ID ${aiArmyId} not found.`);
+        return false;
+    }
+
+    // Get the attack range for this army
+    // Note: getAttackRangeForArmy should return the actual numeric range, not an array
+    const attackRange = this.getAttackRangeForArmy(aiArmyId, this.battleGrid.currentWar.player2); // Getting the attack range for COMPUTER
+
     // Calculate the horizontal and vertical distances between the AI unit and the target
-    const horizontalDistance = Math.abs(aiUnitPos[1] - targetPosition[1]); // Difference in columns
-    const verticalDistance = Math.abs(aiUnitPos[0] - targetPosition[0]); // Difference in rows
-    
-    // console.log(`Horizontal Distance: ${horizontalDistance}, Vertical Distance: ${verticalDistance}, Attack Range:`, attackRange);
-  
-    // Check if the target is within both the horizontal and vertical attack ranges
-    const isWithinHorizontalAttackRange = horizontalDistance <= attackRange[0];
-    const isWithinVerticalAttackRange = verticalDistance <= attackRange[1];
-  
-    // console.log(`Within Horizontal Attack Range: ${isWithinHorizontalAttackRange}, Within Vertical Attack Range: ${isWithinVerticalAttackRange}`);
-  
-    return isWithinHorizontalAttackRange && isWithinVerticalAttackRange;
-  }
-  
+    const horizontalDistance = Math.abs(aiUnitPos.col - targetPosition.col); // Difference in columns
+    const verticalDistance = Math.abs(aiUnitPos.row - targetPosition.row); // Difference in rows
+// console.log(`attackRange`, attackRange)
+// console.log(`horizontalDistance`, horizontalDistance)
+// console.log(`verticalDistance`, verticalDistance)
+
+    // Check if the target is within the attack range
+    const isWithinAttackRange = horizontalDistance <= attackRange[0] && verticalDistance <= attackRange[1];
+
+    // console.log(`isWithinAttackRange`, isWithinAttackRange)
+    return isWithinAttackRange;
+}
 
   
 
-  checkAndAttack(unitType) {
+  
+
+checkAndAttack(aiArmyType) {
     // Find the nearest player unit and its type
-    const { nearestUnitType, nearestUnitPos, nearestDistance } = this.findNearestPlayerUnit(unitType);
-    
+    console.log ( `checkAndAttack aiArmyType`, aiArmyType)
+    const { nearestPlayerArmyType, nearestPlayerArmyPos, nearestDistanceToPlayer } = this.findNearestPlayerArmy(aiArmyType);
+    // console.log(`nearestUnitType, nearestUnitPos, nearestDistance`, nearestPlayerArmyType, nearestPlayerArmyPos, nearestDistanceToPlayer)
+
     
     // Check if the nearest player unit is within attack range
-    if (nearestUnitType && this.isUnitInAttackRange(unitType, nearestUnitPos)) {
-        addBattleLogMessage(`AI (${unitType}) trying to attack nearest player unit (${nearestUnitType}) located at`, nearestUnitPos);
+    if (nearestPlayerArmyType && this.isArmyInAttackRange(aiArmyType, nearestPlayerArmyPos)) {
+        addBattleLogMessage(`AI (${aiArmyType}) trying to attack nearest player unit (${nearestPlayerArmyType}) located at`, [nearestPlayerArmyPos.row, nearestPlayerArmyPos.col]);
   
-      console.log(`${unitType} attacking ${nearestUnitType} at position`, nearestUnitPos);
-      this.battleGrid.currentWar.attack(unitType, nearestUnitType, this.battleGrid.currentWar.player2,this.battleGrid.currentWar.player1, [this.battleGrid, nearestUnitPos]);
+
+
+        const aiArmyDetails = this.battleGrid.currentWar.player2.armies.find(army => army.id === aiArmyType);
+        const PlayerArmyDetails = this.battleGrid.currentWar.player1.armies.find(army => army.id === nearestPlayerArmyType);
+
+      console.log(`THISSSSSSSSSSSS BATTLEGRID INSIDE PLAYER`,this.battleGrid)
+
+      
+
+      this.battleGrid.currentWar.attack(
+        aiArmyType,
+        nearestPlayerArmyType,
+        aiArmyDetails,
+        PlayerArmyDetails,
+        [this.battleGrid ,[nearestPlayerArmyPos.row,nearestPlayerArmyPos.col]],
+      );
+
+        
+        // Make sure to access the row and col correctly from armyPositions
+        const attackerPosition = this.battleGrid.armyPositions[aiArmyType];
+        const defenderPosition = nearestPlayerArmyPos;
+
+        if (attackerPosition && defenderPosition) {
+          // Now we have valid positions, we can flash the cells
+          this.battleGrid.flashCell(attackerPosition.row, attackerPosition.col, "#FFFF00"); // Flash attacker
+          this.battleGrid.flashCell(defenderPosition.row, defenderPosition.col, "#FF0000"); // Flash defender
+        }
+
       return true;
     } else {
-      console.log(`No player units in attack range for ${unitType} or nearest unit not found.`);
+      console.log(`No player units in attack range for ${aiArmyType} or nearest unit not found.`);
       return false;
     }
   }
 
 
-  getUnitTypeAtPosition(position) {
+
+  // DO WE NEED THIS ?
+
+  getArmyTypeAtPosition(position) {
     // Iterate through all player unit positions to find the unit type at the given position
     for (const [unitType, unitPos] of Object.entries(this.battleGrid.currentWar.player1.unitPositions)) {
       if (unitPos.row === position.row && unitPos.col === position.col) {
@@ -211,94 +265,166 @@ class ComputerPlayer extends Player {
   }
 
 
-  getAttackRangeForUnit(unitType) {
-    // Placeholder: Return the attack range for the given unit type
-    // Example:
-    return this.battleGrid.currentWar.player2.armiesByType[unitType][0].attackRange; // Assuming the first unit of this type represents the attack range for all units of this type
+  getAttackRangeForArmy(armyType, player) {
+    // Find the army within the player's armies array using the unique army ID
+    const army = player.armies.find(army => army.id === armyType);
+    if (!army) {
+      console.error(`Army with ID ${armyType} not found for player.`);
+      return null;
+    }
+    console.log(`Attack Range for army ${armyType}:`, army.attackRange);
+    return army.attackRange;
   }
+  
 
-  getMovementRangeForUnit(unitType) {
-    // Placeholder: Return the attack range for the given unit type
-    // Example:
-    return this.battleGrid.currentWar.player2.armiesByType[unitType][0].movementRange; // Assuming the first unit of this type represents the attack range for all units of this type
-  }
+    getMovementRangeForArmy(armyType, player) {
+      // Assuming player is an instance of the Player class and has an 'armies' array
+      const armyToMove = player.armies.find(army => army.id === armyType);
+      if (!armyToMove) {
+        console.error(`Army with ID ${armyType} not found for player.`);
+        return null;
+      }
+      // console.log(`Army Movement Range for ${armyType}:`, armyToMove.movementRange);
+      return armyToMove.movementRange;
+    }
 
-moveUnitTypeCloser(aiUnitType) {
-  const { nearestUnitType, nearestUnitPos, nearestDistance } = this.findNearestPlayerUnit(aiUnitType);
-//   console.log(`AI Unit Type: ${aiUnitType}, Nearest Player Unit Type: ${nearestUnitType}, Nearest Unit Position:`, nearestUnitPos);
 
-  if (!nearestUnitPos) {
-    // console.log(`No target found for ${aiUnitType}.`);
-    return;
-  }
 
-  // Convert aiUnitPos array to object format
-  const aiUnitPosArray = this.battleGrid.unitPositions[aiUnitType];
-//   console.log(`AI Unit Position Array:`, aiUnitPosArray);
+    moveArmyTypeCloser(aiArmyType) {
+      // console.log(`moveArmyTypeCloser aiArmyType`,aiArmyType)
+      const { nearestPlayerArmyType, nearestPlayerArmyPos, nearestDistanceToPlayer } = this.findNearestPlayerArmy(aiArmyType);
+      // console.log(`AI Unit Type: ${aiArmyType}, Nearest Player Unit Type: ${nearestPlayerArmyType}, Nearest Unit Position:`, nearestPlayerArmyPos, nearestDistanceToPlayer);
+  
+      if (!nearestPlayerArmyPos) {
+        console.log(`No target found for ${aiArmyType}.`);
+        return;
+      }
 
-  const movementRange = this.getMovementRangeForUnit(aiUnitType);
-//   console.log(`Movement Range for ${aiUnitType}:`, movementRange);
+          // Find the AI army object based on aiArmyType
+    const aiArmy = this.battleGrid.currentWar.player2.armies.find(army => army.id === aiArmyType);
+    if (!aiArmy) {
+        console.error(`Army ${aiArmyType} not found.`);
+        return;
+    }
+  
+      const aiArmyPos = this.battleGrid.armyPositions[aiArmyType];
+      const movementRange = this.getMovementRangeForArmy(aiArmyType, this.battleGrid.currentWar.player2); // GETTING THE MOVEMENT RANGE FOR COMPUTER
+  
+      // Find the best target position for the AI army
+      const bestTargetPos = this.findBestTargetPosition(aiArmyPos, movementRange, nearestPlayerArmyPos);
+  
 
-  let bestTargetPos = null;
-  let minDistanceToNearest = Infinity;
 
-  for (let rowOffset = -movementRange[0]; rowOffset <= movementRange[0]; rowOffset++) {
-    for (let colOffset = -movementRange[1]; colOffset <= movementRange[1]; colOffset++) {
-      const targetRow = aiUnitPosArray[0] + rowOffset;
-      const targetCol = aiUnitPosArray[1] + colOffset;
-
-    //   console.log(`Checking potential position: Row ${targetRow}, Col ${targetCol}`);
-    //   console.log(`IS THE DISTANCE VALID ? `, this.battleGrid.validateDistance(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], aiUnitPosArray, targetRow, targetCol))
-
-      if (this.battleGrid.validateDistance(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], {row: aiUnitPosArray[0], col: aiUnitPosArray[1]}, targetRow, targetCol)) {
-        const targetPos = [targetRow,targetCol];
-
-        const potentialDistance = this.calculateDistance(targetPos, nearestUnitPos);
-        // console.log(`Potential position at Row ${targetRow}, Col ${targetCol} has a distance of`, potentialDistance, `to the nearest player unit`);
-
-        if (potentialDistance < minDistanceToNearest) {
-          minDistanceToNearest = potentialDistance;
-          bestTargetPos = targetPos;
-        //   console.log(`New best target position found at Row ${targetRow}, Col ${targetCol} with distance`, potentialDistance);
+      if (bestTargetPos && nearestDistanceToPlayer !== 1) {
+        const gridCellSelector = `[data-row="${aiArmyPos.row}"][data-col="${aiArmyPos.col}"]`;
+        const currentGridCell = document.querySelector(gridCellSelector);
+    
+        // Temporarily clear the background image of the current cell
+        if (currentGridCell) {
+          currentGridCell.style.backgroundImage = 'none'
+          // console.log(`REMOVING IMAGEEEEEEEEEEEEEEE FROM `,`[data-row="${currentCell.row}"][data-col="${currentCell.col}"]`);
         }
+
+
+
+
+        addBattleLogMessage(`Moving ${aiArmyType} closer to player unit ${nearestPlayerArmyType} at position Row ${bestTargetPos.row}, Col ${bestTargetPos.col}`);
+          this.battleGrid.moveArmy(aiArmy, aiArmyPos, bestTargetPos.row, bestTargetPos.col);
+      } else {
+        console.log(`No valid move found for ${aiArmyType}.`);
       }
     }
-  }
-// console.log(`ACTUAL DISTANCE`,nearestDistance);
-  if (bestTargetPos && nearestDistance !== 1 ) {
-    addBattleLogMessage(`Moving ${aiUnitType} closer to player unit ${nearestUnitType} at position Row ${bestTargetPos[0]}, Col ${bestTargetPos[1]}`);
-    this.battleGrid.moveUnit(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], {row: aiUnitPosArray[0], col: aiUnitPosArray[1]}, bestTargetPos[0], bestTargetPos[1]);
-  } else {
-    console.log(`No valid move found for ${aiUnitType}.`);
-  }
-}
+
+
+    findBestTargetPosition(aiArmyPos, movementRange, nearestPlayerArmyPos) {
+      let bestTargetPos = null;
+      let minDistanceToNearest = Infinity;
+
+      // Assuming movementRange is an array where both row and col have the same range
+      const [rowRange, colRange] = movementRange;
+
+      for (let rowOffset = -rowRange; rowOffset <= rowRange; rowOffset++) {
+        for (let colOffset = -colRange; colOffset <= colRange; colOffset++) {
+          const targetRow = aiArmyPos.row + rowOffset;
+          const targetCol = aiArmyPos.col + colOffset;
+
+          // Simulate unitType object expected by validateDistance 
+          // IS A HACK !!!  not gonna refactor anymore :D
+          const unitTypeSimulated = { movementRange: [rowRange, colRange] };
+          // Current cell object expected by validateDistance
+          const currentCell = { row: aiArmyPos.row, col: aiArmyPos.col };
+
+          // Call validateDistance with the correctly structured arguments
+          if (this.battleGrid.validateDistance(unitTypeSimulated, currentCell, targetRow, targetCol)) {
+            const targetPos = { row: targetRow, col: targetCol };
+            const potentialDistance = this.calculateDistance(targetPos, nearestPlayerArmyPos);
+
+            if (potentialDistance < minDistanceToNearest) {
+              minDistanceToNearest = potentialDistance;
+              bestTargetPos = targetPos;
+            }
+          }
+        }
+      }
+
+      return bestTargetPos;
+    }
 
   
-  
-  
+
+// moveArmyTypeCloser(aiArmyType) {
+//   // takes in the AI army ID, flind the closes player and take ACTION :D
+//   const { nearestPlayerArmyType, nearestPlayerArmyPos, nearestDistance } = this.findNearestPlayerArmy(aiArmyType);
+//   console.log(`AI Unit Type: ${aiArmyType}, Nearest Player Unit Type: ${nearestPlayerArmyType}, Nearest Unit Position:`, nearestPlayerArmyPos);
+
+//   if (!nearestPlayerArmyPos) {
+//     console.log(`No target found for ${nearestPlayerArmyPos}.`);
+//     return;
+//   }
+
+//   // Convert aiUnitPos array to object format
+//   const aiUnitPosArray = this.battleGrid.armyPositions[aiArmyType];
 
 
+//   const movementRange = this.getMovementRangeForArmy(aiArmyType, this.battleGrid.currentWar.player1);
 
 
+//   let bestTargetPos = null;
+//   let minDistanceToNearest = Infinity;
 
+//   for (let rowOffset = -movementRange[0]; rowOffset <= movementRange[0]; rowOffset++) {
+//     for (let colOffset = -movementRange[1]; colOffset <= movementRange[1]; colOffset++) {
+//       const targetRow = aiUnitPosArray[0] + rowOffset;
+//       const targetCol = aiUnitPosArray[1] + colOffset;
 
+//     //   console.log(`Checking potential position: Row ${targetRow}, Col ${targetCol}`);
+//     //   console.log(`IS THE DISTANCE VALID ? `, this.battleGrid.validateDistance(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], aiUnitPosArray, targetRow, targetCol))
 
+//       if (this.battleGrid.validateDistance(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], {row: aiUnitPosArray[0], col: aiUnitPosArray[1]}, targetRow, targetCol)) {
+//         const targetPos = [targetRow,targetCol];
 
+//         const potentialDistance = this.calculateDistance(targetPos, nearestUnitPos);
+//         // console.log(`Potential position at Row ${targetRow}, Col ${targetCol} has a distance of`, potentialDistance, `to the nearest player unit`);
 
-  moveUnitTowards(unitType, unitId, targetPosition) {
-    // Logic to move the AI unit closer to targetPosition
-}
+//         if (potentialDistance < minDistanceToNearest) {
+//           minDistanceToNearest = potentialDistance;
+//           bestTargetPos = targetPos;
+//         //   console.log(`New best target position found at Row ${targetRow}, Col ${targetCol} with distance`, potentialDistance);
+//         }
+//       }
+//     }
+//   }
+// // console.log(`ACTUAL DISTANCE`,nearestDistance);
+//   if (bestTargetPos && nearestDistance !== 1 ) {
+//     addBattleLogMessage(`Moving ${aiUnitType} closer to player unit ${nearestUnitType} at position Row ${bestTargetPos[0]}, Col ${bestTargetPos[1]}`);
+//     this.battleGrid.moveArmy(this.battleGrid.currentWar.player2.armiesByType[aiUnitType][0], {row: aiUnitPosArray[0], col: aiUnitPosArray[1]}, bestTargetPos[0], bestTargetPos[1]);
+//   } else {
+//     console.log(`No valid move found for ${aiUnitType}.`);
+//   }
+// }
 
-  attackWithUnit(unitType, unit) {
-    // Logic for making this unit attack
+ 
+
+// }
   }
-
-  findAttackableTarget(unitType, unitId) {
-    // Logic to find and return a player unit within attack range of the AI unit
-    // Placeholder: returns a target object if found, or null
-}
-
-  // Additional AI methods as needed...
-}
-
 

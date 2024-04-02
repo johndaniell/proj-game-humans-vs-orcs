@@ -1,63 +1,131 @@
 class UnitBase {
-  constructor(type, health, strength, movementRange, attackRange, imagePath) {
+  constructor(health, strength) {
     this.health = health;
     this.strength = strength;
-    this.movementRange = movementRange;
-    this.type = type;
-    this.attackRange = attackRange;
-    this.imagePath = imagePath
-  }
+  //   this.movementRange = movementRange;
+  //   this.type = type;
+  //   this.attackRange = attackRange;
+  //   this.imagePath = imagePath;
+  //   this.color = color;
+  // 
+}
 
-  // Common methods for all units
-  move() {
-    console.log(`${this.type} moves up to ${this.movementRange[0]}x${this.movementRange[1]} squares.`);
-  }
+  attack(target) {
+    let damageModifier = 1; // Default damage modifier
 
-  attack() {
+    // Determine damage modifier based on colors
+    if (this.color === "GREEN") {
+      if (target.color === "RED") {
+        damageModifier = 1.2; // Green does 120% damage to Red
+      } else if (target.color === "BLUE") {
+        damageModifier = 0.5; // Green does 50% damage to Blue
+      }
+    } else if (this.color === "RED") {
+      if (target.color === "BLUE") {
+        damageModifier = 1.3; // Red does 130% damage to Blue
+      } else if (target.color === "GREEN") {
+        damageModifier = 0.6; // Red does 60% damage to Green
+      }
+    } else if (this.color === "BLUE") {
+      if (target.color === "GREEN") {
+        damageModifier = 1.5; // Blue does 150% damage to Green
+      } else if (target.color === "RED") {
+        damageModifier = 0.75; // Blue does 75% damage to Red
+      }
+    }
+
+    // Calculate total damage
     const baseDamage = this.strength;
-    const diceRoll = Math.ceil(Math.random() * 6);
-    const totalDamage = baseDamage + diceRoll;
-    // console.log(`${this.type} attacks with ${totalDamage} damage.`);
+    const diceRoll = (Math.random() + 1 );
+    const totalDamage = (baseDamage * diceRoll * damageModifier).toFixed(1);
+
+
+    //  to much, redundancy
+    // Display battle log message
+    if (diceRoll === 2) {
+      addBattleLogMessage(`${this.type} does double damage of ${totalDamage}!`);
+    } else {
+    //   addBattleLogMessage(`${this.type} attacks with ${totalDamage} damage.`);
+    }
+
+    // Return total damage
     return totalDamage;
   }
 
-  receiveDamage(damage) {
-    this.health -= damage;
-    // console.log(`${this.type} has received ${damage} points of damage.`);
+  receiveDamage(damage,defenderType) {
+    (this.health -= damage).toFixed(1);
     if (this.health <= 0) {
-      // console.log(`${this.type} has died in combat.`);
+      addBattleLogMessage(`${defenderType} has been defeated in combat.`);
+      this.health = 0;
+    } else {
+      // addBattleLogMessage(`${defenderType} has received ${damage} points of damage, remaining health: ${this.health}.`);
     }
   }
 }
 
-// Factory function to create classes dynamically
-function createUnitClass(unitConfig) {
+
+// Adjust the factory function -- NEW
+function createUnitClass(health, strength) {
   return class extends UnitBase {
     constructor() {
-      super(
-        unitConfig.type,
-        unitConfig.health,
-        unitConfig.strength,
-        unitConfig.movementRange,
-        unitConfig.attackRange,
-        unitConfig.imagePath
-      );
-      // console.log(`THIS SHOULD BE THE IMAGE PATH FOR ${unitConfig.type}`,unitConfig.imagePath)
+      super(health, strength);
     }
 
-    // Add any special methods for specific units
-    // This part could be extended to dynamically add methods based on unitConfig
+    static type = ""; // You can dynamically set this in the forEach loop below
+    // Other static properties
   };
 }
 
-// Example usage:
-// NEED TO MOVE THIS IN A SEPARATE FILE , AND PUT THE IMAGE.PATH TO APLAYER CLASS IN THE TYPE UNIT
 
-
+// Initialize UnitTypes as an empty object
 const UnitTypes = {};
+
 unitData.forEach(config => {
-  UnitTypes[config.type] = createUnitClass(config);
+  const UnitClass = createUnitClass(config.health, config.strength);
+  UnitClass.type = config.type;
+  UnitClass.movementRange = config.movementRange;
+  UnitClass.attackRange = config.attackRange;
+  UnitClass.imagePath = config.imagePath;
+  UnitClass.color = config.color;
+  // Assign the newly created class to the UnitTypes object
+  UnitTypes[config.type] = UnitClass;
 });
+
+
+
+// --- OLD CODE ----
+
+
+// Factory function to create classes dynamically --- OLD 
+// function createUnitClass(unitConfig) {
+//   return class extends UnitBase {
+//     constructor() {
+//       super(
+//         unitConfig.type,
+//         unitConfig.health,
+//         unitConfig.strength,
+//         unitConfig.movementRange,
+//         unitConfig.attackRange,
+//         unitConfig.imagePath,
+//         unitConfig.color,
+//       );
+//       // console.log(`THIS SHOULD BE THE IMAGE PATH FOR ${unitConfig.type}`,unitConfig.imagePath)
+//     }
+
+//     // Add any special methods for specific units
+//     // This part could be extended to dynamically add methods based on unitConfig
+//   };
+// }
+
+
+
+
+
+
+// const UnitTypes = {};
+// unitData.forEach(config => {
+//   UnitTypes[config.type] = createUnitClass(config);
+// });
 
 // Dynamically created unit classes can now be instantiated
 // const footman = new UnitTypes["FootMan"]();

@@ -3,7 +3,7 @@ class BattleGrid {
     this.rows = rows;
     this.columns = columns;
     this.currentWar = currentWar;
-    this.unitPositions = {};
+    this.armyPositions = {};
     this.inAttackMode = false;
     this.selectedUnitForAttack = null;
     this.grid = this.createGrid(rows, columns);
@@ -14,10 +14,14 @@ class BattleGrid {
   }
 
   initializeUnitActionTokens() {
-    // Assuming this.currentWar.player1.armiesByType has all the unit types
-    Object.keys(this.currentWar.player1.armiesByType).forEach((unitType) => {
-      this.unitActionTokens[unitType] = { moveToken: 1, attackToken: 1 };
+    // Reset tokens at the beginning for player1's armies
+    this.unitActionTokens = {}; // Ensure it's clear before initializing
+  
+    // Initialize tokens for player1's armies
+    this.currentWar.player1.armies.forEach(army => {
+      this.unitActionTokens[army.id] = { moveToken: 1, attackToken: 1 };
     });
+  
   }
 
   resetUnitActionTokens(unitType) {
@@ -39,9 +43,12 @@ class BattleGrid {
 
   skipTurnForAllUnits() {
     // Loop through each unit type and set their tokens to 0
-    Object.keys(this.unitActionTokens).forEach((unitType) =>
+    Object.keys(this.unitActionTokens).forEach((unitType) => {
       this.skipTurn(unitType)
+
+    }
     );
+    
 
     // Optionally, trigger any end-of-turn effects here
     addBattleLogMessage("All units have skipped their turn.");
@@ -71,8 +78,7 @@ class BattleGrid {
     this.displayGrid(container);
 
     // Re-place units at their remembered positions
-    this.placeUnitsForSide(this.currentWar.player1, 6, 0, true);
-    this.placeUnitsForSide(this.currentWar.player2, 6, this.columns - 1, false);
+    this.placeUnitsOnGrid()
     document
       .querySelector("#action-bar")
       .querySelectorAll(
@@ -98,282 +104,333 @@ class BattleGrid {
     }
   }
 
-  // Helper function to find the next available position
-  findNextAvailablePosition(startRow, startCol, isPlayerUnit) {
-    // This variable will help us alternate between moving up and down from the startRow
-    let offsetDirection = 1;
+
+
+
+  placeUnitsOnGrid() {
+    // Place player's units
+    this.placeUnitsForSide(this.currentWar.player1.armies, 6, 0, true);
   
-    // Start checking from the startRow itself, then move up and down alternately
+    // Place AI's (enemy) units
+    this.placeUnitsForSide(this.currentWar.player2.armies, 6, this.columns - 1, false);
+  }
+  
+  placeUnitsForSide(armies, startRow, startCol, isPlayer) {
+    armies.forEach(armyDetails => {
+      if (armyDetails.units.length === 0) return; // Skip empty armies
+  
+      // Check if we already have a position for this army
+
+      let position = this.armyPositions[armyDetails.id];
+      if (!position) {
+        // Find a new position for this army
+        position = this.findNextAvailablePosition(startRow, startCol);
+        if (position) {
+          // Save the new position with the army ID
+          this.armyPositions[armyDetails.id] = { row: position[0], col: position[1], isPlayer };
+        } else {
+          console.error(`No available position found for army : ${armyDetails.id}`);
+          return; // Skip placing this army if no position is found
+        }
+      }
+  
+      // Use the position to place the army on the grid
+      this.placeUnitGroup(
+        armyDetails.id, // Use the army ID here
+        armyDetails.units,
+        this.armyPositions[armyDetails.id].row, // Accessing the row directly from the object
+        this.armyPositions[armyDetails.id].col, // use object property
+        armyDetails.imagePath,
+        isPlayer,
+        armyDetails.color
+      );
+    });
+  }
+  
+  
+
+  
+  
+
+  findNextAvailablePosition(startRow, startCol) {
+    let offsetDirection = 1;  // This will alternate between -1 (up) and 1 (down)
+  
+    // Start with the startRow, and check upwards and downwards alternately
     for (let offset = 0; offset < this.rows; offset++) {
-      // Calculate the row to try based on the current offset and direction
-      const tryRow = startRow + (Math.ceil(offset / 2) * offsetDirection);
-  
-      // After each try, invert the direction (up becomes down, down becomes up)
+      const tryRow = startRow + Math.ceil(offset / 2) * offsetDirection;
+      
+      // After each check, switch direction
       offsetDirection *= -1;
-  
-      // Skip if outside grid bounds
+      
+      // Skip if we're checking outside the grid's bounds
       if (tryRow < 0 || tryRow >= this.rows) continue;
-  
-      // Check if the position is available
+      
+      // Check if the cell is available. Note that we don't check for specific unit types here
       if (this.grid[tryRow][startCol] === null) {
         return [tryRow, startCol];
       }
     }
-    // If no position is found, return null
+    
+    // If no available position is found, return null
     return null;
   }
   
+  
 
-  placeUnitsOnGrid() {
-    // Example of placing units for player and enemy dynamically
 
-    this.placeUnitsForSide(this.currentWar.player1, 6, 0, true);
-    this.placeUnitsForSide(this.currentWar.player2, 6, this.columns - 1, false);
-    console.log(`Refreshing grid `);
+placeUnitGroup(armyId, armyUnits, row, col, imagePath, isPlayer,color) {
+  // Boundary checks
+
+
+  if (row < 0 || row >= this.rows || col < 0 || col >= this.columns) {
+    console.error("Grid position is out of bounds.");
+    return;
   }
+  // Initialize the row if necessary
+  // this.grid[row] = this.grid[row] || [];
 
-  placeUnitsForSide(player, startRow, startCol, isPlayerUnit) {
-    Object.entries(player.armiesByType).forEach(([unitType, unitGroup]) => {
-      if (unitGroup.length === 0) return;
+  const cell = this.grid[row][col];
 
-      let position;
-      // Check if we already have a position for this unit type
-      if (this.unitPositions[unitType]) {
-        position = this.unitPositions[unitType];
-      } else {
-        // Find a new position and remember it
-        position = this.findNextAvailablePosition(
-          startRow,
-          startCol,
-          isPlayerUnit
-        );
-        this.unitPositions[unitType] = position;
-      }
-      if (position) {
-        const [row, col] = position;
-        this.placeUnitGroup(
-          unitType,
-          unitGroup,
-          row,
-          col,
-          unitGroup[0].imagePath, // NEED TO ADD IT HERE `
-          isPlayerUnit
-        );
-      }
+  // Check if the cell is empty, or it's occupied by the same armyId
+  if (!cell || (cell && cell.armyId === armyId)) {
+    this.grid[row][col] = {
+      armyId: armyId,
+      armyUnits,
+      imagePath,
+      isPlayer,
+    };
+
+    // Update the cell display based on the new unit group
+    this.updateGridCellDisplayForGroup(row, col, armyId, armyUnits.length, imagePath, isPlayer,color);
+    
+    // Apply visual transformation for enemy units
+    if (!isPlayer) {
+      this.applyVisualTransformForEnemyUnits(row, col);
+    }
+  } else if (cell && cell.armyId !== armyId) {
+    // If the cell is occupied by a different army, log an error
+    console.error(`Cell at [${row}, ${col}] is occupied by a different army: ${cell.armyId}.`);
+  }
+}
+
+
+applyVisualTransformForEnemyUnits(row, col) {
+  const cellElement = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+  if (cellElement) {
+    cellElement.style.transform = 'scaleX(-1)';
+  }
+}
+
+
+
+
+updateGridCellDisplayForGroup(row, col, armyId, count, imagePath, isPlayer,color) {
+  const gridCell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+  // console.log(gridCell)
+  // gridCell.addEventListener("click", () => {
+  //   console.log(`${armyId} at Row: ${row}, Col: ${col} clicked.`);
+  //   // Rest of the click handling code...
+  // });
+
+  if (gridCell) {
+    // Set the background image and text for the unit group
+    gridCell.style.backgroundImage = `url(${imagePath})`;
+    gridCell.setAttribute("data-army-id", armyId); // Changed to 'data-army-type' to match the new terminology
+    gridCell.setAttribute("data-owner", isPlayer.toString());
+    gridCell.setAttribute("data-owner", color);
+    gridCell.style.backgroundSize = "contain";
+    gridCell.style.cursor = "pointer";
+
+    gridCell.addEventListener("mouseenter", (e) => {
+      this.showTooltip(armyId, count,color, e);
     });
-  }
 
-  // Place a group of units in one cell
-  placeUnitGroup(unitType, groupReference, row, col, imagePath, isPlayerUnit) {
-    // Check if the cell is empty or already contains the same unit type
-    if (this.grid[row][col] === null || this.grid[row][col].type === unitType) {
-      this.grid[row][col] = {
-        type: unitType,
-        groupReference, // Store the reference here
-        imagePath,
-        isPlayerUnit,
-      };
+    gridCell.addEventListener("mousemove", (e) => {
+      this.moveTooltip(e);
+    });
 
-      this.updateGridCellDisplayForGroup(
-        row,
-        col,
-        unitType,
-        groupReference.length, // Use the length from the reference
-        imagePath,
-        isPlayerUnit
-      );
-      if (!isPlayerUnit) { document.querySelector(
-        `[data-row="${row}"][data-col="${col}"]`
-      ).style.transform = `scaleX(-1)`}
-      // console.log(unitType, groupReference.length, row, col);
+    gridCell.addEventListener("mouseleave", () => {
+      this.hideTooltip();
+    });
+
+    // Only set the click event for player units
+    if (isPlayer) {
+      gridCell.addEventListener("click", () => {
+        this.selectUnit(armyId, gridCell, count, row, col);
+      });
     } else {
-      console.error("Grid cell is occupied by a different unit type.");
+      // Apply visual transformation for enemy units
+      gridCell.style.transform = 'scaleX(-1)';
     }
   }
+}
 
-  updateGridCellDisplayForGroup(
-    row,
-    col,
-    unitType,
-    count,
-    imagePath,
-    isPlayerUnit
-  ) {
-    const gridCell = document.querySelector(
-      `[data-row="${row}"][data-col="${col}"]`
-    );
 
-    if (gridCell) {
-      // Set the background image and text for the unit group
-      gridCell.style.backgroundImage = `url(${imagePath})`;
-      // gridCell.textContent = `${unitType} (${count}) ${isPlayerUnit}`;
-      gridCell.setAttribute("data-unit-type", unitType);
-      gridCell.setAttribute("data-owner", isPlayerUnit.toString());
-      gridCell.style.backgroundImage = `url(${imagePath})`;
-      gridCell.style.backgroundSize = "contain";
-      gridCell.style.cursor = "pointer";
+showTooltip(armyId, count, color, e) {
+    // Create the tooltip content with the specified color
+    const tooltipContent = `${armyId} (${count})\n<span style="color: ${color};">-${color}-</span>`;
 
-      gridCell.addEventListener("mouseenter", (e) => {
-        if (document.body.contains(gridCell)) {
-          this.tooltip.textContent = `${unitType} (${count})`; // Dynamically set the content
-          this.tooltip.style.visibility = "visible";
-        }
-      });
+    // Set the tooltip content dynamically
+    this.tooltip.innerHTML = tooltipContent;
+  this.tooltip.style.visibility = "visible";
+  this.tooltip.style.left = e.pageX + 10 + "px"; // Position the tooltip near the cursor
+  this.tooltip.style.top = e.pageY + 10 + "px";
+}
 
-      gridCell.addEventListener("mousemove", (e) => {
-        if (document.body.contains(gridCell)) {
-          this.tooltip.style.left = e.pageX + 10 + "px"; // Position the tooltip near the cursor
-          this.tooltip.style.top = e.pageY + 10 + "px";
-        }
-      });
-
-      gridCell.addEventListener("mouseleave", () => {
-        if (document.body.contains(gridCell)) {
-          this.tooltip.style.visibility = "hidden"; // Hide the tooltip
-        }
-      });
-
-      // Only set the click event for player units
-      if (isPlayerUnit) {
-        gridCell.addEventListener("click", () => {
-          addBattleLogMessage(
-            `${count} ${unitType} units at ${row},${col} selected.`
-          );
-
-          this.inAttackMode = false;
-          this.clearHighlightedAttackTargets();
-          this.clearHighlightedCells();
-          this.refreshGrid();
-          // Call function to show 'Move' and 'Attack' in action bar
-          this.showUnitActions(unitType, gridCell, isPlayerUnit);
-        });
-      }
-    }
+moveTooltip(e) {
+  if (this.tooltip.style.visibility === "visible") {
+    this.tooltip.style.left = e.pageX + 10 + "px"; // Position the tooltip near the cursor
+    this.tooltip.style.top = e.pageY + 10 + "px";
   }
+}
 
-  showUnitActions(unitType, gridCell, isPlayerUnit) {
-    // Select all action buttons except 'Back'
-    this.battleActionBar = document.querySelector("#action-bar");
-    const actionButtons = this.battleActionBar.querySelectorAll(
-      ".action-button:not(#back-button):not(#end-turn-button)"
-    );
+hideTooltip() {
+  this.tooltip.style.visibility = "hidden"; // Hide the tooltip
+}
 
-    // If it's a player unit, show 'Move' and 'Attack' buttons; otherwise, hide them
-    if (isPlayerUnit) {
-      // Clear existing 'Move' and 'Attack' actions, if any
-      actionButtons.forEach((button) => button.remove());
+selectUnit(armyId, gridCell, count, row, col) {
+  addBattleLogMessage(`${count} ${armyId} units at ${row},${col} selected.`);
+  this.inAttackMode = false;
+  this.clearHighlightedAttackTargets();
+  this.clearHighlightedCells();
+  this.refreshGrid();
+  // Call function to show 'Move' and 'Attack' in action bar
+  this.showUnitActions(armyId, gridCell, count);
+}
 
+
+/////////////// BUTTTTTTTTTTOOOOOOOOOOOOOONNNNNNNNNNNNNNSSSSSSSSSSSSSSSS 
+
+showUnitActions(armyId, gridCell, count) {
+  // Select all action buttons except 'Back'
+  this.battleActionBar = document.querySelector("#action-bar");
+  const actionButtons = this.battleActionBar.querySelectorAll(
+    ".action-button:not(#back-button):not(#end-turn-button)"
+  );
+
+  // Clear existing 'Move' and 'Attack' actions, if any
+  actionButtons.forEach((button) => button.remove());
+
+  // Assuming isPlayer is a boolean that indicates if this is the current player's army
+  const isPlayer = this.currentWar.player1.armies.some(army => army.id === armyId);
+
+  if (isPlayer) {
       // Create 'Move' button
-      const moveButton = document.createElement("button");
-      moveButton.textContent = "Move";
-      moveButton.classList.add("action-button");
-      moveButton.disabled = this.unitActionTokens[unitType].moveToken <= 0; // Disable if no move tokens
-      moveButton.addEventListener("click", () => {
-        addBattleLogMessage(`Moving ${unitType} ... Click to move`);
-        this.startMoveMode(unitType, gridCell);
-      });
-
-      // Create 'Attack' button
-      const attackButton = document.createElement("button");
-      attackButton.textContent = "Attack";
-      attackButton.classList.add("action-button");
-      attackButton.disabled = this.unitActionTokens[unitType].attackToken <= 0; // Disable if no attack tokens
-      attackButton.addEventListener("click", () => {
-        if (!attackButton.disabled) {
-          this.toggleAttackMode(unitType, gridCell);
-        } else {
-          addBattleLogMessage("No attacks left for this unit type!");
-        }
-      });
-
+      const moveButton = this.createActionButton("Move", armyId, gridCell, 'moveToken', 'move');
+      const attackButton = this.createActionButton("Attack", armyId, gridCell, 'attackToken', 'attack');
       // Create 'Skip' button
-      const skipButton = document.createElement("button");
-      skipButton.textContent = "Skip";
-      skipButton.classList.add("action-button");
-      skipButton.addEventListener("click", () => {
-        // Consume both move and attack tokens
-        if (
-          this.unitActionTokens[unitType].moveToken > 0 ||
-          this.unitActionTokens[unitType].attackToken > 0
-        ) {
-          this.unitActionTokens[unitType].moveToken = 0;
-          this.unitActionTokens[unitType].attackToken = 0;
-          addBattleLogMessage(
-            `Skipping turn for ${unitType}. Move and attack consumed.`
-          );
-
-          // Update the state of the game as needed
-          // ...
-
-          actionButtons.forEach((button) => button.remove());
-          this.refreshGrid();
-
-          // Update the appearance of all action buttons
-          this.updateButtonStyles(
-            unitType,
-            moveButton,
-            attackButton,
-            skipButton
-          );
-        } else {
-          addBattleLogMessage("No actions left to skip!");
-        }
-      });
+      const skipButton = this.createSkipButton(armyId);
 
       // Add buttons to the action bar
-      this.battleActionBar.appendChild(moveButton);
-      this.battleActionBar.appendChild(attackButton);
-      this.battleActionBar.appendChild(skipButton);
+      this.battleActionBar.append(moveButton, attackButton, skipButton);
 
       // Update the appearance of buttons based on tokens
-      this.updateButtonStyles(unitType, moveButton, attackButton, skipButton);
-    } else {
-      // If it's not a player unit, remove 'Move' and 'Attack' buttons
-      actionButtons.forEach((button) => button.remove());
-    }
+      this.updateButtonStyles(armyId, moveButton, attackButton, skipButton);
   }
+}
 
-  updateButtonStyles(unitType, moveButton, attackButton, skipButton) {
-    const disabledStyle = "action-button-disabled"; // CSS class for disabled style
-    const hasMoveToken = this.unitActionTokens[unitType].moveToken > 0;
-    const hasAttackToken = this.unitActionTokens[unitType].attackToken > 0;
+createActionButton(actionName, armyId, gridCell, tokenType, actionType) {
+  const actionButton = document.createElement("button");
+  actionButton.textContent = actionName;
+  actionButton.classList.add("action-button");
+  actionButton.disabled = this.unitActionTokens[armyId][tokenType] <= 0;
+
+  // Determine the correct method to call based on the actionType
+  actionButton.addEventListener("click", () => {
+    
+      if (!actionButton.disabled) {
+          switch (actionType) {
+              case 'move':
+                  this.startMoveMode(armyId, gridCell);
+                  break;
+              case 'attack':
+                  this.toggleAttackMode(armyId, gridCell);
+                  break;
+              default:
+                  console.error("Invalid action type");
+          }
+      } else {
+          addBattleLogMessage(`No ${actionName.toLowerCase()}s left for this army!`);
+      }
+  });
+
+  return actionButton;
+}
+
+
+createSkipButton(armyId) {
+  const skipButton = document.createElement("button");
+  skipButton.textContent = "Skip";
+  skipButton.classList.add("action-button");
+  skipButton.addEventListener("click", () => {
+      // Consume both move and attack tokens
+      if (this.unitActionTokens[armyId].moveToken > 0 ||
+          this.unitActionTokens[armyId].attackToken > 0) {
+          this.unitActionTokens[armyId].moveToken = 0;
+          this.unitActionTokens[armyId].attackToken = 0;
+          addBattleLogMessage(`Skipping turn for army ${armyId}. Move and attack consumed.`);
+          // Refresh grid and update action buttons here
+          this.refreshGrid();
+          // Additional game state updates as needed
+      } else {
+          addBattleLogMessage("No actions left to skip!");
+      }
+  });
+  return skipButton;
+}
+
+
+updateButtonStyles(armyId, moveButton, attackButton, skipButton) {
+  // Update the style of buttons based on the availability of action tokens
+  const tokens = this.unitActionTokens[armyId];
+  const disabledStyle = "action-button-disabled"; 
+  // console.log(`TOKENS`, tokens)
+  moveButton.disabled = tokens.moveToken <= 0;
+  attackButton.disabled = tokens.attackToken <= 0;
+
 
     // Update the disabled state and style for each button
-    moveButton.disabled = !hasMoveToken;
-    attackButton.disabled = !hasAttackToken;
-    skipButton.disabled = !hasMoveToken && !hasAttackToken;
+    moveButton.disabled = !tokens.moveToken;
+    attackButton.disabled = !tokens.attackToken;
+    skipButton.disabled = !tokens.moveToken && !tokens.attackToken;
 
     // Apply the disabled style based on the disabled state
-    moveButton.classList.toggle(disabledStyle, !hasMoveToken);
-    attackButton.classList.toggle(disabledStyle, !hasAttackToken);
+    moveButton.classList.toggle(disabledStyle, !tokens.moveToken);
+    attackButton.classList.toggle(disabledStyle, !tokens.attackToken);
     skipButton.classList.toggle(
       disabledStyle,
-      !hasMoveToken && !hasAttackToken
+      !tokens.moveToken && !tokens.attackToken
     );
-  }
+
+}
+
+
+
 
   // ATTACK DISTANCE LOGIC
   //
   //
   // Method to enter attack mode
 
-  toggleAttackMode(unitType, gridCell) {
+  toggleAttackMode(armyId, gridCell) {
     this.clearHighlightedAttackTargets();
     this.clearHighlightedCells();
     this.refreshGrid();
     // Enter or exit attack mode
     this.inAttackMode = !this.inAttackMode;
-    this.selectedUnitForAttack = this.inAttackMode ? unitType : null;
+    this.selectedUnitForAttack = this.inAttackMode ? armyId : null;
     addBattleLogMessage(
-      `${this.inAttackMode ? "Entering" : "Exiting"} attack mode.`
+      `${this.inAttackMode ? "Entering" : "Exiting"} attack mode for army : ${armyId}.`
     );
     if (this.inAttackMode) {
-      this.highlightEnemiesInRange(unitType, gridCell);
-      this.highlightValidAttacks(unitType, gridCell);
+      // Pass armyId to the highlighting functions
+      this.highlightEnemiesInRange(armyId, gridCell);
+      this.highlightValidAttacks(armyId, gridCell);
     } else {
       this.clearHighlightedCells();
     }
   }
+  
 
   // Method to calculate cell position from dataset attributes
   getCellPosition(gridCell) {
@@ -387,10 +444,10 @@ class BattleGrid {
   isEnemyUnitAt(row, col) {
     // If the cell is not empty, check if the `isPlayerUnit` property is false
     const cellContent = this.grid[row][col];
-
-    if (cellContent && cellContent.isPlayerUnit === false) {
+    // console.log(`WHAT DO WE HAVE IN HERE ?? BEFORE CONDITION`, cellContent);
+    if (cellContent && cellContent.isPlayer === false) {
       // The cell contains an enemy unit
-      console.log(`WHAT DO WE HAVE IN HERE ??`, cellContent);
+      // console.log(`WHAT DO WE HAVE IN HERE ??`, cellContent);
       return true;
     }
     // The cell is either empty or contains a player unit
@@ -403,7 +460,7 @@ class BattleGrid {
     );
     highlightedTargets.forEach((target) => {
       target.classList.remove("highlight-attack-enemy");
-      console.log(`REMOVE HIGHLIGHTS`);
+      // console.log(`REMOVE HIGHLIGHTS`);
       // Clone and replace to remove event listeners
       const newTarget = target.cloneNode(true);
       target.parentNode.replaceChild(newTarget, target);
@@ -416,7 +473,7 @@ class BattleGrid {
     );
     highlightedTargets.forEach((target) => {
       target.classList.remove("highlight-attack");
-      console.log(`REMOVE HIGHLIGHTS`);
+      // console.log(`REMOVE HIGHLIGHTS`);
       // Clone and replace to remove event listeners
       const newTarget = target.cloneNode(true);
       target.parentNode.replaceChild(newTarget, target);
@@ -424,25 +481,24 @@ class BattleGrid {
   }
 
 
-  highlightValidAttacks(unitType, gridCell) {
+  highlightValidAttacks(armyId, gridCell) {
     // Get the current position
-    const unit = this.getUnitInstanceFromType(unitType);
-    const currentPosition = {
-      row: parseInt(gridCell.dataset.row, 10),
-      col: parseInt(gridCell.dataset.col, 10),
-    };
+    // console.log(`Trying to highlight the attack`, armyId, gridCell)
+    const armyDetails = this.currentWar.player1.armies.find(army => army.id === armyId);
+    if (!armyDetails) {
+      console.error(`Army with ID ${armyId} not found.`);
+      return;
+    }
+    const currentPosition = this.getCellPosition(gridCell);
 
     // Clear any previous highlights
     // this.clearHighlightedCells();
 
     // Determine the valid move locations based on move range
-    const validMoves = this.calculateLocations(
-      currentPosition,
-      unit.attackRange
-    );
-
+    const validAttacks = this.calculateLocations(currentPosition, armyDetails.attackRange);
+        // console.log(`Trying to highlight the attack`, armyId, gridCell)
     // Highlight the valid moves
-    validMoves.forEach(({ row, col }) => {
+    validAttacks.forEach(({ row, col }) => {
       const cellToHighlight = document.querySelector(
         `[data-row="${row}"][data-col="${col}"]`
       );
@@ -467,105 +523,163 @@ class BattleGrid {
   }
 
   
-  highlightEnemiesInRange(unitType, gridCell) {
-    const unit = this.getUnitInstanceFromType(unitType);
-    const attackRange = unit.attackRange; // Assuming attackRange is defined for the unit
-    const currentPosition = this.getCellPosition(gridCell);
 
-    // Then, highlight valid attack targets based on range
+
+  highlightEnemiesInRange(armyId, gridCell) {
+    // Retrieve the army details using armyId
+    const armyDetails = this.currentWar.player1.armies.find(army => army.id === armyId);
+    
+    // If armyDetails or attackRange is not found, we cannot highlight enemies
+    if (!armyDetails || !armyDetails.attackRange) return;
+  
+    const attackRange = armyDetails.attackRange; // Now this is defined for the army
+    const currentPosition = this.getCellPosition(gridCell); // Assuming this function extracts the row and col from the grid cell
+  
+    // Calculate valid attack targets based on range
     const validTargets = this.calculateLocations(currentPosition, attackRange);
-
+  
     validTargets.forEach(({ row, col }) => {
-      const cell = document.querySelector(
-        `[data-row="${row}"][data-col="${col}"]`
-      );
-      // Highlight cell if it contains an enemy unit
+      const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+      
+      // Highlight the cell if it contains an enemy unit
       if (cell && this.isEnemyUnitAt(row, col)) {
         cell.classList.add("highlight-attack-enemy");
-        // Setup click listener for executing the attack
-        cell.addEventListener(
-          "click",
-          () => {
-            this.executeAttack(
-              unitType,
-              currentPosition,
-              { row, col },
-              this.currentWar.player1,
-              this.currentWar.player2
-            )
-          },
-          { once: true }
-        );
+  
+        // Set up a click listener for executing the attack
+        cell.addEventListener("click", () => {
+          this.executeAttack(armyId, currentPosition, { row, col });
+        }, { once: true });
       }
     });
   }
+  
 
+
+  // Execute attack from the selected army to the target position
+async executeAttack(attackingArmyId, fromPosition, toPosition) {
+  const attackerArmyDetails = this.currentWar.player1.armies.find(army => army.id === attackingArmyId);
+  const defenderArmyType = this.grid[toPosition.row][toPosition.col]?.armyId;
+  const defenderArmyDetails = this.currentWar.player2.armies.find(army => army.id === defenderArmyType);
+
+  if (!attackerArmyDetails || !defenderArmyDetails) {
+    addBattleLogMessage("Invalid attacker or defender army.");
+    return;
+  }
+
+  // Assuming attackRange is an array [minRange, maxRange] and calculateDistance returns the distance between two points.
+  // const distance = this.calculateDistance(fromPosition, toPosition);
+  // const attackRange = attackerArmyDetails.attackRange;
+
+  // if (distance >= attackRange[0] && distance <= attackRange[1]) {
+    // addBattleLogMessage(`Army ${attackingArmyId} attacks ${defenderArmyId} at position [${toPosition.row}, ${toPosition.col}]`);
+
+ 
+
+    // Conduct the attack - this is a simplified representation
+    // You will need to replace it with the actual logic of your attack
+    this.currentWar.attack(
+      attackingArmyId,
+      defenderArmyType,
+      attackerArmyDetails,
+      defenderArmyDetails,
+      [this , [toPosition.row,toPosition.col]]
+    );
+
+
+
+    // Update tokens and UI after attack
+    this.unitActionTokens[attackingArmyId].attackToken -= 1;
+    this.clearHighlightedAttackTargets();
+    this.clearHighlightedCells();
+
+    await this.flashCell(fromPosition.row, fromPosition.col,"#FFFF00");
+    await this.flashCell(toPosition.row, toPosition.col,"#FF0000");
+
+
+
+    this.refreshGrid(); // Reflect changes on the grid after the attack
+
+
+
+    // Additional post-attack logic goes here...
+
+  // } else {
+  //   addBattleLogMessage("Target is out of range or no target selected.");
+  //   this.clearHighlightedAttackTargets();
+  //   this.clearHighlightedCells();
+  //   this.refreshGrid();
+  // }
+
+  // Reset attack mode
+  this.inAttackMode = false;
+  this.selectedUnitForAttack = null;
+}
 
   
-  // Execute attack from the selected unit to the target position
-  executeAttack(unitType, fromPosition, toPosition, attacker, defender) {
-    // You can add range validation here if needed, based on unitType's attackRange
-    const { row: targetRow, col: targetCol } = toPosition;
 
-    // Perform the attack logic
-    if (this.isEnemyUnitAt(targetRow, targetCol)) {
-      addBattleLogMessage(
-        `Attacking ${unitType}  enemy at ${targetRow}, ${targetCol}`
-      );
-      console.log(this.grid[targetRow][targetCol]);
-      this.currentWar.attack(
-        unitType,
-        this.grid[targetRow][targetCol].type,
-        attacker,
-        defender,
-      );
-      // Additional logic after successful attack, e.g., updating unit positions
-      this.unitActionTokens[unitType].attackToken -= 1;
-      // Reset UI elements
-      this.grid[targetRow][targetCol] = null;
-      this.clearHighlightedAttackTargets();
-      this.clearHighlightedCells();
-      this.refreshGrid(); // Refresh the grid to reflect changes after the attack
-    } else {
-      addBattleLogMessage("No enemy unit selected or out of range.");
-      this.clearHighlightedAttackTargets();
-      this.clearHighlightedCells();
-      this.refreshGrid();
+
+
+
+
+flashCell(row, col, flashColor) {
+  return new Promise((resolve, reject) => {
+    const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) {
+      console.error(`Cell not found at [${row}, ${col}]`);
+      reject(`Cell not found at [${row}, ${col}]`);
+      return;
     }
 
-    // Reset attack mode
-    this.inAttackMode = false;
-    this.selectedUnitForAttack = null;
-  }
+    const animationName = `flash-${flashColor.replace("#", "")}`;
+    const keyframes = `
+      @keyframes ${animationName} {
+        0%, 100% { filter: brightness(100%); }
+        25%, 75% { filter: brightness(200%); background-color: ${flashColor}; }
+      }
+    `;
+
+    console.log(`FLASHING`)
+    const styleElement = document.createElement('style');
+    document.head.appendChild(styleElement);
+    styleElement.sheet.insertRule(keyframes, 0);
+
+    cell.style.animation = `${animationName} 0.2s 3`;
+
+    cell.addEventListener('animationend', () => {
+      cell.style.animation = '';
+      document.head.removeChild(styleElement);
+      resolve(); // This will allow the execution to continue after the animation
+    }, { once: true });
+  });
+}
+
+
+
+
+
 
 
 
   ///////////////// ---------------- MOVE ---------------------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   // Method for starting movement mode
-  startMoveMode(unitType, gridCell) {
+  startMoveMode(armyId, gridCell) {
     this.clearHighlightedAttackTargets();
     this.clearHighlightedCells();
     this.refreshGrid();
     // Logic to highlight valid move locations
-    addBattleLogMessage(`Prepare to move ${unitType}`);
+    addBattleLogMessage(`Prepare to move ${armyId}`);
     // Implement the logic to select valid cells
-    const unitToMove = this.getUnitInstanceFromType(unitType);
+    const armyToMove = this.currentWar.player1.armies.find(army => army.id === armyId);
 
-    if (unitToMove) {
-      this.highlightValidMoves(unitToMove, gridCell);
+    if (armyToMove) {
+      this.highlightValidMoves(armyToMove, gridCell);
     }
   }
 
-  getUnitInstanceFromType(unitType) {
-    // Here, you'll need to access the instance of the unit to move.
-    // This could be stored in an array or object when units are created/placed.
-    // For example:
-    return this.currentWar.player1.armiesByType[unitType][0]; // Just as an example, taking the first unit of the type
-  }
 
   // Method to highlight valid moves
-  highlightValidMoves(unit, gridCell) {
+  highlightValidMoves(armyToMove, gridCell) {
     // Get the current position
     const currentPosition = {
       row: parseInt(gridCell.dataset.row, 10),
@@ -578,7 +692,7 @@ class BattleGrid {
     // Determine the valid move locations based on move range
     const validMoves = this.calculateLocations(
       currentPosition,
-      unit.movementRange
+      armyToMove.movementRange
     );
 
     // Highlight the valid moves
@@ -592,8 +706,8 @@ class BattleGrid {
         cellToHighlight.addEventListener(
           "click",
           () => {
-            this.moveUnit(
-              unit,
+            this.moveArmy(
+              armyToMove,
               {
                 row: parseInt(gridCell.dataset.row, 10),
                 col: parseInt(gridCell.dataset.col, 10),
@@ -640,6 +754,7 @@ class BattleGrid {
     // console.log(`WE WANT TO MOVE ${unitType.type} to ${targetRow},${targetCol} from ${currentCell}`)
     const moveRange = unitType.movementRange;
 
+
        // Check if the target position is outside the grid bounds
        if (targetRow < 0 || targetRow >= this.rows || targetCol < 0 || targetCol >= this.columns) {
         // console.log(`Target position ${targetRow},${targetCol} is out of bounds.`);
@@ -661,52 +776,154 @@ class BattleGrid {
     return isValidHorizontalMove && isValidVerticalMove && isTargetCellEmpty;
   }
 
+
+
+
   // THE ACTUAL MOVE HAPPENS HERE !
   // Method to move a unit to a new position
-  moveUnit(unitType, currentCell, targetRow, targetCol) {
-    // Step 1: Validate move (e.g., target cell is within range and not occupied)
-    const unitTypeKey =
-      typeof unitType === "object" && unitType.type ? unitType.type : unitType;
-
-    const isValidMove = this.validateDistance(
-      unitType,
-      currentCell,
-      targetRow,
-      targetCol
-    );
-    if (!isValidMove) {
-      console.log("Invalid move");
-      this.clearHighlightedCells();
-      return;
-    }
-
-    // Step 2: Clear the unit's old position in the data model
-    const oldRow = parseInt(currentCell.row, 10);
-    const oldCol = parseInt(currentCell.col, 10);
-    this.grid[oldRow][oldCol] = null; // Clear the old position
-
-    // Step 3: Update unit's position in the data model
-
-    // REALLY NEED TO CLEAN UP THE VARIABLE NAMES !!
-    //  IS A MESS
-    this.grid[targetRow][targetCol] = unitType; // Set the new position
-    this.unitPositions[unitType.type] = [targetRow, targetCol]; // Update the stored position
-
-    // HACKY AI AVOID
-    // If this is a human player's unit with action tokens, decrement moveToken
-    // If this is a human player's unit with action tokens, decrement moveToken
-    if (
-      this.unitActionTokens &&
-      this.unitActionTokens[unitTypeKey] &&
-      typeof this.unitActionTokens[unitTypeKey].moveToken === "number"
-    ) {
-      this.unitActionTokens[unitTypeKey].moveToken -= 1;
-    }
-
-    // Refresh the grid to reflect the updated positions
-    this.refreshGrid(); // This function will redraw the grid based on the updated data model
+  // Method to move an army to a new position using armyId
+  async moveArmy(armyToMove, currentCell, targetRow, targetCol) {
+  // Validate move based on army's movement range and target cell availability
+  const isValidMove = this.validateDistance(armyToMove, currentCell, targetRow, targetCol);
+  if (!isValidMove) {
+    console.error("Invalid move");
+    this.clearHighlightedCells();
+    return;
   }
 
-  // Additional methods to manage grid state, place units, etc.
+
+  // Update army's position in the data model
+  this.grid[targetRow][targetCol] = {
+    armyId: armyToMove.id,
+    armyUnits: armyToMove.units,
+    imagePath: armyToMove.imagePath,
+    isPlayer: armyToMove.isPlayer // Assuming isPlayer is a flag indicating player ownership
+  };
+
+  
+  // Clear the army's old position
+  const oldRow = parseInt(currentCell.row, 10);
+  const oldCol = parseInt(currentCell.col, 10);
+  // Assuming the grid stores armies or null for empty
+  this.grid[currentCell.row][currentCell.col] = null;
+  this.refreshGrid();
+  // console.log (`await this.animateMove(armyToMove, ) `, armyToMove,)
+  // console.log (`await this.animateMove( currentCell, ) `, currentCell,)
+  // console.log (`await this.animateMove( targetRow, ) `,  targetRow,)
+  // console.log (`await this.animateMove( targetCol) `,  targetCol)
+  await this.animateMove(armyToMove, currentCell, targetRow, targetCol) 
+
+  this.grid[oldRow][oldCol] = null;
+  this.armyPositions[armyToMove.id] = { row: targetRow, col: targetCol,  isPlayer: this.armyPositions[armyToMove.id].isPlayer}
+
+  if (
+    this.unitActionTokens &&
+    this.unitActionTokens[armyToMove.id] &&
+    typeof this.unitActionTokens[armyToMove.id].moveToken === "number"
+  ) {
+    this.unitActionTokens[armyToMove.id].moveToken -= 1;
+  }
+
+  // Refresh the grid to reflect updated positions
+  this.refreshGrid();
+
 }
 
+// Helper method to find army by ID (You need to implement this based on your data structure)
+findArmyById(armyId) {
+  // Example implementation, adjust based on how you store armies
+  return this.currentWar.player1.armies.find(army => army.id === armyId)
+      || this.currentWar.player2.armies.find(army => army.id === armyId);
+}
+
+// Note: You'll need to adjust or implement `validateDistance` to work with the new parameters
+
+  // Additional methods to manage grid state, place units, etc.
+
+
+
+
+
+
+
+ animateMove(armyToMove, currentCell, targetRow, targetCol) {
+    // Convert grid coordinates to pixel/screen coordinates
+
+    return new Promise((resolve) => {
+
+      const gridCellSelector = `[data-row="${currentCell.row}"][data-col="${currentCell.col}"]`;
+      const currentGridCell = document.querySelector(gridCellSelector);
+  
+      // Temporarily clear the background image of the current cell
+      if (currentGridCell) {
+        currentGridCell.style.backgroundImage = 'none'
+        // console.log(`REMOVING IMAGEEEEEEEEEEEEEEE FROM `,`[data-row="${currentCell.row}"][data-col="${currentCell.col}"]`);
+      }
+      // this.refreshGrid();
+
+
+    const startPosition = this.getPixelPositionForGridCell(currentCell.row, currentCell.col);
+    const targetPosition = this.getPixelPositionForGridCell(targetRow, targetCol);
+  
+    // Calculate the time it should take to move from the start position to the target position
+    const distance = Math.sqrt(Math.pow(targetRow - currentCell.row, 2) + Math.pow(targetCol - currentCell.col, 2));
+    const animationTime = 0.2 * distance; // time in seconds
+  
+    // Determine direction of movement to apply scaleX if moving left
+    const isMovingLeft = targetCol < currentCell.col;
+
+    // Create a container for the image
+    const movingContainer = document.createElement('div');
+    movingContainer.style.position = 'absolute';
+    movingContainer.style.width = '80px'; // Match the grid cell size
+    movingContainer.style.height = '80px'; // Match the grid cell size
+    movingContainer.style.left = `${startPosition.x}px`;
+    movingContainer.style.top = `${startPosition.y}px`;
+    movingContainer.style.backgroundImage = `url(${armyToMove.imagePath})`;
+    movingContainer.style.backgroundSize = 'contain';
+    movingContainer.style.backgroundPosition = 'center';
+    movingContainer.style.backgroundRepeat = 'no-repeat';
+    movingContainer.style.transition = `all ${animationTime}s ease-in-out`;
+    // Apply scaleX transformation if moving left
+    movingContainer.style.transform = isMovingLeft ? 'scaleX(-1)' : '';
+    // Add the image to the document
+    document.body.appendChild(movingContainer);
+
+
+    this.grid[currentCell.row][currentCell.col] = null
+    // this.refreshGrid();
+    // Move the image to the target position
+    setTimeout(() => {
+      movingContainer.style.left = targetPosition.x  + 'px';
+      movingContainer.style.top = targetPosition.y  + 'px';
+      movingContainer.style.transform = isMovingLeft ? 'scaleX(-1)' : '';
+    }, 1000 / 30); // Start moving after ~33ms for approx. 30 FPS
+
+
+
+    // Remove the image and update the grid after the animation is done
+    setTimeout(() => {
+      document.body.removeChild(movingContainer);
+      
+      resolve();// Resolve the promise here
+    }, animationTime * 1000);
+  });
+  }
+
+// Helper function to convert grid position to pixel position
+getPixelPositionForGridCell(row, col) {
+  const cellSize = 80; // The size of the cell
+  const borderSize = 1; // The size of the border
+  const gridContainer = document.getElementById('battle-grid-container');
+  const gridRect = gridContainer.getBoundingClientRect();
+
+  // Include the grid container's offset in the calculation
+  const x = gridRect.left + (col * (cellSize + borderSize/2 ));
+  const y = gridRect.top + (row * (cellSize + borderSize/2 ));
+
+  return { x, y };
+}
+
+
+
+}

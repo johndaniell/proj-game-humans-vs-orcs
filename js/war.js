@@ -14,87 +14,114 @@ attack(attackerType, defenderType, attacker, defender, currentGrid) {
         return;
     }
 
-    // console.log(`ATTACKER: ${attackerType}, DEFENDER: ${defenderType}`);
+    const attackerArmy = attacker.units;
+    const defenderArmy = defender.units;
 
-    const attackerArmy = attacker.armiesByType[attackerType] || [];
-    const defenderArmy = defender.armiesByType[defenderType] || [];
+    attackerArmy.forEach(attackingUnit => {
+        if (attackingUnit.health > 0) {
+            const targetUnit = this.getRandomLivingUnit(defenderArmy);
+            if (targetUnit) {
+                const totalAttackDamage = attackingUnit.attack(targetUnit);
+                addBattleLogMessage(`${attacker.id}${attacker.units.indexOf(attackingUnit)} attacks ${defender.id} with total damage of ${totalAttackDamage}.`);
+                targetUnit.receiveDamage(totalAttackDamage, defenderType);
 
-    const totalAttackDamage = this.calculateTotalDamage(attackerArmy);
-    addBattleLogMessage(`${attackerType} attacks ${defenderType} with total damage of ${totalAttackDamage}.`);
+                if (targetUnit.health <= 0) {
+                    const index = defenderArmy.indexOf(targetUnit);
+                    if (index !== -1) {
+                        defenderArmy.splice(index, 1);
+                    }
+                }
+            }
+        }
+    });
 
-    this.applyDamage(defenderArmy, totalAttackDamage, defenderType, defender,currentGrid);
-
+    // Call cleanupDefeatedUnits only for additional cleanup tasks, not for removing units
+    this.cleanupDefeatedUnits(defenderType, defender, currentGrid);
     this.determineOutcome();
 }
+      getRandomLivingUnit(army) {
+        const livingUnits = army.filter(unit => unit.health > 0);
+        if (livingUnits.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * livingUnits.length);
+        return livingUnits[randomIndex];
+      }
+    
 
-    calculateTotalDamage(army) {
-        return army.reduce((total, unit) => total + unit.attack(), 0);
-    }
+cleanupDefeatedUnits(armyType, player, currentGrid) {
+  player.count = player.units.length;
+  console.log (`ARMY TYPE`, armyType)
+  console.log (`PLAYER DATA`, player)
+  console.log (`CURRENT GRID`, currentGrid)
+    
+
+    // Find which player owns the armyType
+    let currentPlayer = this.player1.armies.some(army => army.id === armyType) ? this.player1 : 
+      this.player2.armies.some(army => army.id === armyType) ? this.player2 :  null;
+      console.log(`currentPlayer `, currentPlayer)
+      console.log(`currentPlayer.armies `, currentPlayer.armies)
 
 
-    applyDamage(army, damage,armyType,player,currentGrid) {
-        let remainingDamage = damage;
-        army.forEach(unit => {
-            if (remainingDamage <= 0) return;
-            const damageApplied = Math.min(unit.health, remainingDamage);
-            unit.receiveDamage(damageApplied);
-            remainingDamage -= damageApplied;
-        });
 
-        this.cleanupDefeatedUnits(army,armyType,player,currentGrid);
-    }
+      const armyToRemoveIndex = currentPlayer.armies.findIndex(army => army.id === armyType);
+      console.log(`CURRENT army`, armyToRemoveIndex)
+     
 
-    cleanupDefeatedUnits(army, armyType, player,currentGrid) {
-        const initialCount = army.length;
+      if (armyToRemoveIndex !== -1 && currentPlayer.armies[armyToRemoveIndex].units.length === 0) {
+        // Remove the army from the player's array
+        currentPlayer.armies.splice(armyToRemoveIndex, 1);
+        delete player.id[armyType];
 
-        const aliveUnits = army.filter(unit => unit.health > 0);
 
-        if (initialCount !== aliveUnits.length) {
-            addBattleLogMessage(`${player.name} lost ${initialCount - aliveUnits.length} ${armyType}.`);
-            // console.log(`WTF IS THISSSSSSSSSSSSS`, player.armiesByType[armyType])
-            // console.log(player)
-            // Update the player's armiesByType directly to reflect the removal of defeated units
+    // if (player.count === 0) {
+        addBattleLogMessage(`${armyType} were banished from the face of the earth!`);
+        delete player.id[armyType];
+
+        // If provided, clean the cell in the grid
+        if (currentGrid) {
+            const [thisBattleGrid, enemyPosition] = currentGrid;
+            const [ row, col ] = enemyPosition;
+            thisBattleGrid.grid[row][col] = null;
             
-            if (aliveUnits.length === 0) {
-                addBattleLogMessage(`${armyType} were banished from the face of earth !`);
-                //removing the type
-                delete player.armiesByType[armyType];
+            delete thisBattleGrid.armyPositions[armyType]
+            console.log(`ARMIES IN THE GRID`,thisBattleGrid.armyPositions)
+            console.log(thisBattleGrid.currentWar)
 
-                // // cleaning the cell
-                // HACKY WAY TO DO IT !
-                if (currentGrid){
-                const  [thisBattleGrid, enemyPosition] = currentGrid
-                console.log(`TRYING TO REMOVE THE CELL from this GRID`,thisBattleGrid)
-                console.log(`TRYING TO REMOVE THE CELL`,enemyPosition)
-                const [targetRow,targetCol ] = enemyPosition;
-                thisBattleGrid.grid[targetRow][targetCol] = null;
-                thisBattleGrid.refreshGrid
-                }
-
-
-              } else {
-                player.armiesByType[armyType] = aliveUnits;
-              }
-            // console.log(`Computer(defender) ARMIES :`,player.armiesByType[armyType]);
+            thisBattleGrid.refreshGrid();
         }
     }
+}
+
+
+
+determineCurrentPlayer(armyType) {
+  // Determine the player based on ownership of the armyType
+  let currentPlayer = this.player1.armies.some(army => army.id === armyType) ? this.player1 : 
+                      this.player2.armies.some(army => army.id === armyType) ? this.player2 : 
+                      null;
+
+  // Log the name for debugging purposes
+  console.log(`currentPlayer: `, currentPlayer ? currentPlayer.name : "not found");
+
+  return currentPlayer;
+}
+
+
 
     determineOutcome() {
         // Check if one player has no units left across all types
-        const player1TotalUnits = Object.values(this.player1.getTotalArmyCount()).reduce((acc, count) => acc + count, 0);
-        const player2TotalUnits = Object.values(this.player2.getTotalArmyCount()).reduce((acc, count) => acc + count, 0);
-        // console.log(`COMPUTER PLAYER why the hell is this increasing ? `,player2TotalUnits)
-
+        const player1TotalUnits = this.player1.getTotalArmyCount();
+        const player2TotalUnits = this.player2.getTotalArmyCount();
+        console.log(`COMPUTER PLAYER TOTAL UNITS: `, player2TotalUnits);
+        console.log(`HUMAN PLAYER TOTAL UNITS: `, player1TotalUnits);
+    
         if (player1TotalUnits === 0 || player2TotalUnits === 0) {
             const winner = player1TotalUnits > 0 ? this.player1.name : this.player2.name;
             addBattleLogMessage(`The war has ended. Winner: ${winner}`);
             this.finishBattle(winner);
-
-
+    
             // Implement additional logic for handling the end of the war, such as cleanup or resetting the game state
         }
     }
-
     finishBattle(winner) {
 
         
